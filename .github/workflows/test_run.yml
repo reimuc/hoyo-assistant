@@ -1,0 +1,34 @@
+name: 🧪 Test Run
+
+on:
+  schedule:
+    - cron: "30 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    environment: build
+    steps:
+      - name: 🔍 Checkout
+        uses: actions/checkout@v6
+
+      - name: 🔧 Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: 💾 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Run Smoke Test
+        run: python scripts/smoke_test.py
+
+      - name: Run Task with Secrets
+        run: |
+          curl ${{ secrets.CONFIG_1 }} -o config/config_1.yaml
+          curl ${{ secrets.CONFIG_2 }} -o config/config_2.yaml
+          hoyo-cli --multi
