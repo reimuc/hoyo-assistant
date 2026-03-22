@@ -29,6 +29,7 @@ jobs:
 
       - name: Run Task with Secrets
         run: |
+          mkdir config
           curl ${{ secrets.CONFIG_1 }} -o config/config_1.yaml
           curl ${{ secrets.CONFIG_2 }} -o config/config_2.yaml
           hoyo-cli --multi
