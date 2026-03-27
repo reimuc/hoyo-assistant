@@ -3,7 +3,7 @@ import os
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from rich.console import Console
 from rich.panel import Panel
@@ -41,7 +41,7 @@ class ServerConfig:
         self._interval_seconds = max(60, seconds)
 
 
-def start_interactive_console(cfg: ServerConfig = None):
+def start_interactive_console(cfg: ServerConfig | None = None):
     """
     Start the interactive server console.
     """
@@ -123,11 +123,14 @@ def start_interactive_console(cfg: ServerConfig = None):
                     console.print(f"[red]{t('cli.task.server_invalid_interval')}[/red]")
             elif cmd == "status":
                 next_run_dt = datetime.fromtimestamp(cfg._next_run) if cfg._next_run > 0 else datetime.now()
-                time_left = next_run_dt - datetime.now()
-                if time_left.total_seconds() < 0:
+                # time_left can be a timedelta when computed, or a string when rendered
+                time_left: timedelta | str = next_run_dt - datetime.now()
+                if isinstance(time_left, timedelta) and time_left.total_seconds() < 0:
                     time_left = t("cli.task.server_status_running")
                 else:
-                    time_left = str(time_left).split(".")[0]
+                    # If it's timedelta, format; if already a string, keep it
+                    if isinstance(time_left, timedelta):
+                        time_left = str(time_left).split(".")[0]
 
                 last_run_str = t("cli.task.server_last_run_never")
                 if cfg._last_run > 0:
@@ -220,7 +223,9 @@ async def execute_task(cfg: ServerConfig):
 
     try:
         if current_mode == "single":
-            status_code, msg = await run_once(cfg._config_path, use_env=cfg._use_env)
+            # run_once expects an Optional[str]; guard against list[str] being passed from config
+            cfg_path = cfg._config_path if isinstance(cfg._config_path, str) else None
+            status_code, msg = await run_once(cfg_path, use_env=cfg._use_env)
         else:
             status_code, msg = await run_multi_account(
                 target_path=cfg._config_path,
