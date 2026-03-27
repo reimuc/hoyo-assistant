@@ -1,6 +1,8 @@
 import logging
 import os
 import sys
+from typing import Optional
+from types import FrameType
 
 from loguru import logger
 
@@ -20,8 +22,10 @@ class InterceptHandler(logging.Handler):
             level = str(record.levelno)
 
         # Find caller from where originated the logged message
-        frame, depth = logging.currentframe(), 2
-        while frame.f_code.co_filename == logging.__file__:
+        # logging.currentframe() may return None in some environments; type accordingly
+        frame: Optional[FrameType] = logging.currentframe()
+        depth = 2
+        while frame is not None and getattr(frame, "f_code", None) is not None and frame.f_code.co_filename == logging.__file__:
             frame = frame.f_back
             depth += 1
 
