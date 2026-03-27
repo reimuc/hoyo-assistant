@@ -21,14 +21,15 @@ class ServerConfig:
     def __init__(
         self, mode: str = "multi", config_path: str | list[str] | None = None, push_config_path: str | None = None
     ):
-        self._interval_seconds = 720 * 60  # 12 hours
-        self._mode = mode  # "single" or "multi"
-        self._config_path = config_path  # For run_once or run_multi_account
-        self._push_config_path = push_config_path
-        self._last_run = 0
-        self._next_run = 0
-        self._running = False
-        self._stop_event = threading.Event()
+        self._interval_seconds: int = 720 * 60  # 12 hours
+        self._mode: str = mode  # "single" or "multi"
+        # config_path may be a single path or a list in other contexts; keep runtime flexible
+        self._config_path: str | list[str] | None = config_path  # For run_once or run_multi_account
+        self._push_config_path: str | None = push_config_path
+        self._last_run: float = 0.0
+        self._next_run: float = 0.0
+        self._running: bool = False
+        self._stop_event: threading.Event = threading.Event()
         # Server mode uses local config/defaults only and ignores env runtime overrides.
         self._use_env = False
 
