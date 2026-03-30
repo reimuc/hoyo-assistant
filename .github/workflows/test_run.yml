@@ -25,11 +25,11 @@ jobs:
           pip install -e .
 
       - name: Run Smoke Test
-        run: python scripts/smoke_test.py
+        run: python tests/smoke_test.py
 
       - name: Run Task with Secrets
         run: |
           mkdir config
           curl ${{ secrets.CONFIG_1 }} -o config/config_1.yaml
           curl ${{ secrets.CONFIG_2 }} -o config/config_2.yaml
-          python scripts/run_test.py --multi
+          python tests/run_test.py --multi
