@@ -1,3 +1,7 @@
+import functools
+from collections.abc import Callable
+from typing import Any
+
 from ...core import config, tools
 from ...core.constants import API_CLOUD_GENSHIN_SIGN_OS, API_CLOUD_ZZZ_SIGN_OS
 from ...core.i18n import t
@@ -19,7 +23,14 @@ async def clear_cookie(code: str) -> None:
 
 class CloudGame:
     def __init__(
-        self, game: str, url: str, token: str, game_biz: str, lang: str, coin_name: str, clear_cookie_func
+        self,
+        game: str,
+        url: str,
+        token: str,
+        game_biz: str,
+        lang: str,
+        coin_name: str,
+        clear_cookie_func: Callable[[], Any],
     ) -> None:
         self.game = game
         self.url = url
@@ -49,7 +60,9 @@ class CloudGame:
                 send_free_time = int(free_time["send_freetime"])
 
                 if send_free_time > 0:
-                    ret_msg += t("games.cloud.success", game=self.game, time=send_free_time)
+                    ret_msg += t(
+                        "games.cloud.success", game=self.game, time=send_free_time
+                    )
                 else:
                     ret_msg += t("games.cloud.limit_fail", game=self.game)
                 log.info(ret_msg)
@@ -58,7 +71,11 @@ class CloudGame:
                 card_status = data["data"]["play_card"]["short_msg"]
                 coin_num = data["data"]["coin"]["coin_num"]
                 status_msg = t(
-                    "games.cloud.status", time=time, card_status=card_status, coin_name=self.coin_name, coin=coin_num
+                    "games.cloud.status",
+                    time=time,
+                    card_status=card_status,
+                    coin_name=self.coin_name,
+                    coin=coin_num,
                 )
                 log.info(status_msg)
                 ret_msg += "\t" + status_msg
@@ -93,7 +110,7 @@ async def run_task() -> str:
                 game.biz,
                 lang,
                 t(f"games.cloud.{game.name}_coin"),
-                lambda: clear_cookie(game.name),
+                functools.partial(clear_cookie, game.name),
             )
             ret_msg += await game_task.check_in() + "\n\n"
 

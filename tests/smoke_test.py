@@ -21,10 +21,14 @@ if str(PROJECT_ROOT) not in sys.path:
 from hoyo_assistant.core import config, request
 from hoyo_assistant.core.constants import StatusCode
 from hoyo_assistant.runner import multi_account, single_account
-from hoyo_assistant.tasks.cn import cloud_games as cn_cloud_games
-from hoyo_assistant.tasks.cn import game_signin as cn_game_signin
-from hoyo_assistant.tasks.os import cloud_games as os_cloud_games
-from hoyo_assistant.tasks.os import game_signin as os_game_signin
+from hoyo_assistant.tasks.cn import (
+    cloud_games as cn_cloud_games,
+    game_signin as cn_game_signin,
+)
+from hoyo_assistant.tasks.os import (
+    cloud_games as os_cloud_games,
+    game_signin as os_game_signin,
+)
 
 
 def run() -> int:

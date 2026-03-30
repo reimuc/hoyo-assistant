@@ -7,7 +7,8 @@ import os
 import re
 import time
 from configparser import ConfigParser, NoOptionError
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, cast
 from urllib.parse import quote_plus
 
 from . import config as runtime_config
@@ -16,7 +17,7 @@ from .loghelper import log
 from .request import http
 
 
-def get_push_title(status_id) -> str:
+def get_push_title(status_id: int) -> str:
     """
     获取推送标题
     :param status_id: 状态ID
@@ -36,7 +37,7 @@ def get_push_title(status_id) -> str:
 
 
 class PushHandler:
-    def __init__(self, config_file="push.ini"):
+    def __init__(self, config_file: str = "push.ini") -> None:
         self.http = http  # Use global async http
         self.cfg = ConfigParser()
         # If config_file is an absolute path, use it directly.
@@ -48,7 +49,7 @@ class PushHandler:
             self.config_path = os.path.join(os.getcwd(), "config")
             self.config_name = config_file
 
-    def get_config_path(self):
+    def get_config_path(self) -> str:
         # If config_name is already an absolute path from __init__, return it directly.
         # This handles the case where PushHandler(config_file="/full/path/to/push.ini") is passed.
         if os.path.isabs(self.config_name):
@@ -63,7 +64,7 @@ class PushHandler:
 
         return os.path.join(file_path, self.config_name)
 
-    def load_config(self):
+    def load_config(self) -> bool:
         file_path = self.get_config_path()
         if os.path.exists(file_path):
             try:
@@ -75,7 +76,7 @@ class PushHandler:
         return False
 
     # 推送消息中屏蔽关键词
-    def msg_replace(self, msg):
+    def msg_replace(self, msg: Any) -> str:
         block_keys = []
         try:
             # self.cfg is sync ConfigParser, checking if it was loaded
@@ -83,15 +84,17 @@ class PushHandler:
             block_str = self.cfg.get("setting", "push_block_keys")
             block_keys = block_str.split(",")
         except Exception:
-            return msg
+            return str(msg)
         else:
             for block_key in block_keys:
                 block_key_trim = str(block_key).strip()
                 if block_key_trim:
                     msg = str(msg).replace(block_key_trim, "*" * len(block_key_trim))
-            return msg
+            return str(msg)
 
-    def _build_push_payload(self, status_id, push_message):
+    def _build_push_payload(
+        self, status_id: int, push_message: str | None
+    ) -> tuple[str, str, str]:
         """Build unified push payload for all channels."""
         title = get_push_title(status_id)
         content = str(push_message).strip() if push_message else ""
@@ -102,7 +105,7 @@ class PushHandler:
         full_text = t("push.template_full", title=title, body=body)
         return title, body, full_text
 
-    async def telegram(self, status_id, push_message):
+    async def telegram(self, status_id: int, push_message: str | None) -> None:
         # Async telegram push
         _ = self.cfg.get("telegram", "http_proxy", fallback=None)
         # We need async get_new_session_use_proxy if we support proxy switch
@@ -120,17 +123,19 @@ class PushHandler:
         }
         await self.http.post(url=url, data=data)
 
-    async def ftqq(self, status_id, push_message):
+    async def ftqq(self, status_id: int, push_message: str | None) -> None:
         """
         Server酱推送，具体推送位置在server酱后台配置
         """
         title, body, _ = self._build_push_payload(status_id, push_message)
         await self.http.post(
-            url="https://sctapi.ftqq.com/{}.send".format(self.cfg.get("setting", "push_token")),
+            url="https://sctapi.ftqq.com/{}.send".format(
+                self.cfg.get("setting", "push_token")
+            ),
             data={"title": title, "desp": body},
         )
 
-    async def pushplus(self, status_id, push_message):
+    async def pushplus(self, status_id: int, push_message: str | None) -> None:
         """
         PushPlus推送
         """
@@ -145,7 +150,7 @@ class PushHandler:
             },
         )
 
-    async def pushme(self, status_id, push_message):
+    async def pushme(self, status_id: int, push_message: str | None) -> None:
         """
         PushMe推送
         """
@@ -163,7 +168,10 @@ class PushHandler:
             "type": "",
         }
         log.debug(f"PushMe 请求数据: {data}")
-        response = await self.http.post(url=self.cfg.get("pushme", "url", fallback="https://push.i-i.me/"), data=data)
+        response = await self.http.post(
+            url=self.cfg.get("pushme", "url", fallback="https://push.i-i.me/"),
+            data=data,
+        )
         log.debug(f"PushMe 响应状态码: {response.status}")
         text = await response.text()
         log.debug(f"PushMe 响应内容: {text}")
@@ -172,7 +180,7 @@ class PushHandler:
         else:
             log.error(t("push.pushme_fail", status=response.status, text=text))
 
-    async def cqhttp(self, status_id, push_message):
+    async def cqhttp(self, status_id: int, push_message: str | None) -> None:
         """
         OneBot V11(CqHttp)协议推送
         """
@@ -184,8 +192,8 @@ class PushHandler:
             return
 
         _, _, full_text = self._build_push_payload(status_id, push_message)
-        data = {"message": get_push_title(status_id) + "\r\n" + push_message}
-        data["message"] = full_text
+        # use a flexible dict to allow numeric ids
+        data: dict[str, Any] = {"message": full_text}
         if qq:
             data["user_id"] = int(qq)
         if group:
@@ -194,7 +202,7 @@ class PushHandler:
         await self.http.post(url=self.cfg.get("cqhttp", "cqhttp_url"), json=data)
 
     # 感谢 @islandwind 提供的随机壁纸api 个人主页：https://space.bilibili.com/7600422
-    async def smtp(self, status_id, push_message):
+    async def smtp(self, status_id: int, push_message: str | None) -> None:
         """
         SMTP 电子邮件推送
         """
@@ -204,20 +212,24 @@ class PushHandler:
 
         title, body, _ = self._build_push_payload(status_id, push_message)
 
-        async def get_background_url():
+        async def get_background_url() -> str:
             try:
-                resp = await self.http.get("https://api.iw233.cn/api.php?sort=random&type=json")
-                return (await resp.json())["pic"][0]
+                resp = await self.http.get(
+                    "https://api.iw233.cn/api.php?sort=random&type=json"
+                )
+                # resp.json() is untyped; cast result to expected structure
+                data = await resp.json()
+                return cast(str, data["pic"][0])
             except Exception:
                 log.warning(t("push.smtp_img_fail"))
                 return "unable to get the image"
 
-        def get_background_img_html(background_url):
+        def get_background_img_html(background_url: str | None) -> str:
             if background_url:
                 return f'<img src="{background_url}" alt="background" style="width: 100%; filter: brightness(50%)">'
             return ""
 
-        def get_background_img_info(background_url):
+        def get_background_img_info(background_url: str | None) -> str:
             if background_url:
                 return (
                     f'<p style="color: #fff;text-shadow:0px 0px 10px #000;">{t("push.smtp_img_title")}</p>\n'
@@ -229,15 +241,7 @@ class PushHandler:
         if self.cfg.getboolean("smtp", "background", fallback=True):
             image_url = await get_background_url()
 
-        # Reading file async
-        try:
-            # Just use sync read for template for now or aiofiles if imported
-            pass
-        except Exception:
-            pass
-        # Since SMTP library is blocking, run it in a worker thread.
-
-        def send_sync():
+        def send_sync() -> None:
             try:
                 with open("assets/email_example.html", encoding="utf-8") as f:
                     EMAIL_TEMPLATE = f.read()
@@ -256,18 +260,26 @@ class PushHandler:
             msg_mime["To"] = smtp_info["toaddr"]
             msg_mime["From"] = f"{smtp_info['subject']}<{smtp_info['fromaddr']}>"
 
+            # Annotate server as the base smtplib.SMTP to allow assignment of SMTP_SSL as well.
+            server: smtplib.SMTP
             if self.cfg.getboolean("smtp", "ssl_enable"):
-                server = smtplib.SMTP_SSL(smtp_info["mailhost"], self.cfg.getint("smtp", "port"))
+                server = smtplib.SMTP_SSL(
+                    smtp_info["mailhost"], self.cfg.getint("smtp", "port")
+                )
             else:
-                server = smtplib.SMTP(smtp_info["mailhost"], self.cfg.getint("smtp", "port"))
+                server = smtplib.SMTP(
+                    smtp_info["mailhost"], self.cfg.getint("smtp", "port")
+                )
             server.login(smtp_info["username"], smtp_info["password"])
-            server.sendmail(smtp_info["fromaddr"], smtp_info["toaddr"], msg_mime.as_string())
+            server.sendmail(
+                smtp_info["fromaddr"], smtp_info["toaddr"], msg_mime.as_string()
+            )
             server.close()
             log.info(t("push.smtp_success"))
 
         await asyncio.to_thread(send_sync)
 
-    async def wecom(self, status_id, push_message):
+    async def wecom(self, status_id: int, push_message: str | None) -> None:
         """
         企业微信推送
         感谢linjie5493@github 提供的代码
@@ -282,7 +294,8 @@ class PushHandler:
 
         _, _, full_text = self._build_push_payload(status_id, push_message)
         token_resp = await self.http.post(
-            url=f"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={corpid}&corpsecret={secret}", data=""
+            url=f"https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid={corpid}&corpsecret={secret}",
+            data="",
         )
         push_token = (await token_resp.json())["access_token"]
         push_data = {
@@ -293,10 +306,11 @@ class PushHandler:
             "safe": 0,
         }
         await self.http.post(
-            f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={push_token}", json=push_data
+            f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={push_token}",
+            json=push_data,
         )
 
-    async def wecomrobot(self, status_id, push_message):
+    async def wecomrobot(self, status_id: int, push_message: str | None) -> None:
         """
         企业微信机器人
         """
@@ -308,14 +322,16 @@ class PushHandler:
                 "msgtype": "text",
                 "text": {
                     "content": full_text,
-                    "mentioned_mobile_list": [f"{self.cfg.get('wecomrobot', 'mobile')}"],
+                    "mentioned_mobile_list": [
+                        f"{self.cfg.get('wecomrobot', 'mobile')}"
+                    ],
                 },
             },
         )
         rep = await resp.json()
         log.info(t("push.result", result=rep.get("errmsg")))
 
-    async def pushdeer(self, status_id, push_message):
+    async def pushdeer(self, status_id: int, push_message: str | None) -> None:
         """
         PushDeer推送
         """
@@ -330,18 +346,22 @@ class PushHandler:
             },
         )
 
-    async def dingrobot(self, status_id, push_message):
+    async def dingrobot(self, status_id: int, push_message: str | None) -> None:
         """
         钉钉群机器人推送
         """
         _, _, full_text = self._build_push_payload(status_id, push_message)
-        api_url = self.cfg.get("dingrobot", "webhook")  # https://oapi.dingtalk.com/robot/send?access_token=XXX
+        api_url = self.cfg.get(
+            "dingrobot", "webhook"
+        )  # https://oapi.dingtalk.com/robot/send?access_token=XXX
         secret = self.cfg.get("dingrobot", "secret")  # 安全设置 -> 加签 -> 密钥 -> SEC*
         if secret:
             timestamp = str(round(time.time() * 1000))
             sign_string = f"{timestamp}\n{secret}"
             hmac_code = hmac.new(
-                key=secret.encode("utf-8"), msg=sign_string.encode("utf-8"), digestmod=hashlib.sha256
+                key=secret.encode("utf-8"),
+                msg=sign_string.encode("utf-8"),
+                digestmod=hashlib.sha256,
             ).digest()
             sign = quote_plus(base64.b64encode(hmac_code))
             api_url = f"{api_url}&timestamp={timestamp}&sign={sign}"
@@ -354,12 +374,14 @@ class PushHandler:
         rep = await resp.json()
         log.info(t("push.result", result=rep.get("errmsg")))
 
-    async def feishubot(self, status_id, push_message):
+    async def feishubot(self, status_id: int, push_message: str | None) -> None:
         """
         飞书机器人(WebHook)
         """
         _, _, full_text = self._build_push_payload(status_id, push_message)
-        api_url = self.cfg.get("feishubot", "webhook")  # https://open.feishu.cn/open-apis/bot/v2/hook/XXX
+        api_url = self.cfg.get(
+            "feishubot", "webhook"
+        )  # https://open.feishu.cn/open-apis/bot/v2/hook/XXX
         resp = await self.http.post(
             url=api_url,
             headers={"Content-Type": "application/json; charset=utf-8"},
@@ -368,7 +390,7 @@ class PushHandler:
         rep = await resp.json()
         log.info(t("push.result", result=rep.get("msg")))
 
-    async def bark(self, status_id, push_message):
+    async def bark(self, status_id: int, push_message: str | None) -> None:
         """
         Bark推送
         """
@@ -383,7 +405,7 @@ class PushHandler:
         rep = await resp.json()
         log.info(t("push.result", result=rep.get("message")))
 
-    async def gotify(self, status_id, push_message):
+    async def gotify(self, status_id: int, push_message: str | None) -> None:
         """
         gotify
         """
@@ -400,7 +422,7 @@ class PushHandler:
         rep = await resp.json()
         log.info(t("push.result", result=rep.get("errmsg")))
 
-    async def ifttt(self, status_id, push_message):
+    async def ifttt(self, status_id: int, push_message: str | None) -> int:
         """
         ifttt
         """
@@ -424,7 +446,7 @@ class PushHandler:
             log.info(t("push.ifttt_done"))
         return 1
 
-    async def webhook(self, status_id, push_message):
+    async def webhook(self, status_id: int, push_message: str | None) -> None:
         """
         WebHook
         """
@@ -437,7 +459,7 @@ class PushHandler:
         rep = await resp.json()
         log.info(t("push.result", result=rep.get("errmsg")))
 
-    async def qmsg(self, status_id, push_message):
+    async def qmsg(self, status_id: int, push_message: str | None) -> None:
         """
         qmsg
         """
@@ -450,7 +472,7 @@ class PushHandler:
         rep = await resp.json()
         log.info(t("push.result", result=rep["reason"]))
 
-    async def discord(self, status_id, push_message):
+    async def discord(self, status_id: int, push_message: str | None) -> None:
         import pytz
 
         title, body, _ = self._build_push_payload(status_id, push_message)
@@ -461,9 +483,7 @@ class PushHandler:
                 embed_color = 1926125
             elif status_id == 1:  # 全部失败
                 embed_color = 14368575
-            elif status_id == 2:  # 部分失败
-                embed_color = 16744192
-            elif status_id == 3:  # 触发验证码
+            elif status_id == 2 or status_id == 3:  # 部分失败
                 embed_color = 16744192
             return embed_color
 
@@ -483,7 +503,9 @@ class PushHandler:
                             "icon_url": "https://github.com/DGP-Studio/Snap.Hutao.Docs/blob/main/docs/.vuepress/public"
                             "/images/202308/hoyolab-miyoushe-Icon.png?raw=true ",
                         },
-                        "timestamp": datetime.now(timezone.utc).astimezone(pytz.timezone("Asia/Shanghai")).isoformat(),
+                        "timestamp": datetime.now(UTC)
+                        .astimezone(pytz.timezone("Asia/Shanghai"))
+                        .isoformat(),
                     }
                 ],
                 "username": "MihoyoBBSTools",
@@ -497,7 +519,7 @@ class PushHandler:
         else:
             log.info(t("push.discord_success", status=rep.status))
 
-    def wintoast(self, status_id, push_message):
+    def wintoast(self, status_id: int, push_message: str | None) -> None:
         try:
             toast = __import__("win11toast").toast
             title, body, _ = self._build_push_payload(status_id, push_message)
@@ -508,7 +530,7 @@ class PushHandler:
         except Exception:
             log.error(t("push.wintoast_err"))
 
-    async def serverchan3(self, status_id, push_message):
+    async def serverchan3(self, status_id: int, push_message: str | None) -> None:
         title, body, _ = self._build_push_payload(status_id, push_message)
         sendkey = self.cfg.get("serverchan3", "sendkey")
         match = re.match(r"sctp(\d+)t", sendkey)
@@ -528,12 +550,15 @@ class PushHandler:
     # 其他推送方法，例如 ftqq, pushplus 等, 和 telegram 方法相似
     # 在类内部直接使用 self.cfg 读取配置
 
-    async def push(self, status, push_message):
+    async def push(self, status: int, push_message: str | None) -> int:
         if not self.load_config():
             return 1
         if not self.cfg.getboolean("setting", "enable"):
             return 0
-        if self.cfg.getboolean("setting", "error_push_only", fallback=False) and status == 0:
+        if (
+            self.cfg.getboolean("setting", "error_push_only", fallback=False)
+            and status == 0
+        ):
             return 0
         log.info(t("push.execution_start"))
         func_names = self.cfg.get("setting", "push_server").lower()
@@ -558,8 +583,12 @@ class PushHandler:
         return 0 if push_success else 1
 
 
-async def async_push(status, push_message, config_path=None):
-    push_handler_instance = PushHandler(config_file=config_path) if config_path else PushHandler()
+async def async_push(
+    status: int, push_message: str | None, config_path: str | None = None
+) -> int:
+    push_handler_instance = (
+        PushHandler(config_file=config_path) if config_path else PushHandler()
+    )
     return await push_handler_instance.push(status, push_message)
 
 

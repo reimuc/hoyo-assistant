@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -13,8 +13,8 @@ config: dict[str, Any] = HoyoSettings().model_dump()
 config_raw: dict[str, Any] = deepcopy(config)
 runtime_overrides: dict[str, Any] = {}
 
-config_path: Optional[str] = None
-path: Optional[str] = None  # Directory of config file
+config_path: str | None = None
+path: str | None = None  # Directory of config file
 
 _SENSITIVE_KEYS = {
     "cookie",
@@ -60,7 +60,7 @@ def redact_config_data(data: Any) -> Any:
     return _walk(deepcopy(data))
 
 
-def get_effective_config(redact: bool = True) -> dict[str, Any]:
+def get_effective_config(redact: bool = True) -> Any:
     """Get current effective runtime config, optionally redacted."""
     current = deepcopy(config)
     if redact:
@@ -79,8 +79,8 @@ def _deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str
 
 
 def load_config(
-    config_file: Optional[str] = None,
-    overrides: Optional[dict[str, Any]] = None,
+    config_file: str | None = None,
+    overrides: dict[str, Any] | None = None,
     use_env: bool = True,
 ) -> dict[str, Any]:
     """
@@ -105,7 +105,8 @@ def load_config(
         target_file = _find_default_config_file()
 
     # 2. Load from file if found
-    file_data = {}
+    # 明确文件数据的类型以满足 mypy
+    file_data: dict[str, Any] = {}
     if target_file and os.path.exists(target_file):
         try:
             log.info(t("config.loading", path=target_file))
@@ -150,15 +151,15 @@ def load_config(
 
 
 def reload_config(
-    config_file: Optional[str] = None,
-    overrides: Optional[dict[str, Any]] = None,
+    config_file: str | None = None,
+    overrides: dict[str, Any] | None = None,
     use_env: bool = True,
-):
+) -> None:
     """Reload configuration."""
     load_config(config_file=config_file, overrides=overrides, use_env=use_env)
 
 
-async def save_config():
+async def save_config() -> None:
     """Save current config to file (async)."""
     if not config_path:
         log.debug(t("config.save_skip"))
@@ -175,7 +176,9 @@ async def save_config():
         log.error(t("config.save_fail", error=e))
 
 
-def save_config_sync(filepath: Optional[str] = None, data: Optional[dict] = None):
+def save_config_sync(
+    filepath: str | None = None, data: dict[str, Any] | None = None
+) -> None:
     """Save config to file (synchronous)."""
     target = filepath or config_path
     content = data or config
@@ -186,26 +189,32 @@ def save_config_sync(filepath: Optional[str] = None, data: Optional[dict] = None
 
     try:
         with open(target, "w", encoding="utf-8") as f:
-            yaml.dump(content, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            yaml.dump(
+                content,
+                f,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+            )
     except Exception as e:
         log.error(t("config.save_fail_target", path=target, error=e))
 
 
-async def clear_cookie():
+async def clear_cookie() -> None:
     """Clear cookie in config and save."""
     if "account" in config:
         config["account"]["cookie"] = ""
         await save_config()
 
 
-async def clear_stoken():
+async def clear_stoken() -> None:
     """Clear stoken in config and save."""
     if "account" in config:
         config["account"]["stoken"] = ""
         await save_config()
 
 
-def _find_default_config_file() -> Optional[str]:
+def _find_default_config_file() -> str | None:
     """Find default config file in standard locations."""
     candidates = [
         os.path.join(os.getcwd(), "config", "config.yaml"),
@@ -275,12 +284,24 @@ def auto_fill_config_file(filepath: str, backup: bool = True) -> tuple[bool, str
         if backup:
             backup_path = f"{filepath}.bak"
             with open(backup_path, "w", encoding="utf-8") as f:
-                yaml.dump(original_data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                yaml.dump(
+                    original_data,
+                    f,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                    sort_keys=False,
+                )
             log.info(t("config.backup_created", path=backup_path))
 
         # Write filled config back to file
         with open(filepath, "w", encoding="utf-8") as f:
-            yaml.dump(filled_data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            yaml.dump(
+                filled_data,
+                f,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+            )
 
         log.info(t("config.auto_filled", path=filepath))
         return True, t("config.auto_filled", path=filepath)

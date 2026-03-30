@@ -1,3 +1,5 @@
+from typing import Any
+
 from . import config, login
 from .constants import API_ACCOUNT_INFO, GAME_INFO_ID_TO_CONFIG, GAME_INFO_ID_TO_NAME
 from .error import CookieError
@@ -12,11 +14,16 @@ def get_game_name(game_id: str) -> str:
     if config_name:
         if config_name == "honkaisr":
             config_name = "honkai_sr"
-        return t(f"games.names.{config_name}", default=GAME_INFO_ID_TO_NAME.get(game_id, game_id))
+        return t(
+            f"games.names.{config_name}",
+            default=GAME_INFO_ID_TO_NAME.get(game_id, game_id),
+        )
     return GAME_INFO_ID_TO_NAME.get(game_id, game_id)
 
 
-async def get_account_list(game_id: str, headers: dict, update: bool = False) -> list:
+async def get_account_list(
+    game_id: str, headers: dict[str, Any], update: bool = False
+) -> list[tuple[str, str, str]]:
     """
     获取账号列表
 
@@ -35,7 +42,9 @@ async def get_account_list(game_id: str, headers: dict, update: bool = False) ->
         raise CookieError(t("account.cookie_invalid"))
 
     log.info(t("account.fetching", name=game_name))
-    response = await http.get(API_ACCOUNT_INFO, params={"game_biz": game_id}, headers=headers, use_cache=False)
+    response = await http.get(
+        API_ACCOUNT_INFO, params={"game_biz": game_id}, headers=headers, use_cache=False
+    )
     data = await response.json()
     if data["retcode"] == -100:
         return await get_account_list(game_id, headers, update=True)
@@ -44,9 +53,9 @@ async def get_account_list(game_id: str, headers: dict, update: bool = False) ->
         log.warning(t("account.list_fail", name=game_name))
         return []
 
-    account_list = []
+    account_list: list[tuple[str, str, str]] = []
     for i in data["data"]["list"]:
-        account_list.append([i["nickname"], i["game_uid"], i["region"]])
+        account_list.append((i["nickname"], i["game_uid"], i["region"]))
 
     if len(account_list) == 0:
         if not update:

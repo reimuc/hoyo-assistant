@@ -1,20 +1,22 @@
 import json
 import locale
 import os
-from typing import Any
+from typing import Any, cast
 
 from .loghelper import log
 
 
 class I18n:
-    def __init__(self):
+    def __init__(self) -> None:
         self._locales: dict[str, dict[str, Any]] = {}
         self._current_lang = "zh_CN"
-        self._locales_dir = os.path.join(os.path.dirname(os.path.dirname(str(os.path.abspath(__file__)))), "locales")
+        self._locales_dir = os.path.join(
+            os.path.dirname(os.path.dirname(str(os.path.abspath(__file__)))), "locales"
+        )
         self._load_locales()
         self._detect_language()
 
-    def _detect_language(self):
+    def _detect_language(self) -> None:
         """Detect system language or use ENVRIONMENT variable."""
         env_lang = os.getenv("HOYO_ASSISTANT_LANGUAGE")
         if env_lang:
@@ -26,7 +28,9 @@ class I18n:
             sys_lang_code = locale.getlocale()[0]
             if not sys_lang_code:
                 lang_env = os.getenv("LANG", "")
-                sys_lang_code = lang_env.split(".")[0].replace("-", "_") if lang_env else None
+                sys_lang_code = (
+                    lang_env.split(".")[0].replace("-", "_") if lang_env else None
+                )
             if sys_lang_code:
                 normalized_lang = sys_lang_code.replace("-", "_").lower()
                 # Map system locale to our supported locales
@@ -36,12 +40,14 @@ class I18n:
                     self._current_lang = "en_US"
                 else:
                     self._current_lang = "en_US"  # Default fallback
-                log.debug(f"Detected system language: {sys_lang_code}, using: {self._current_lang}")
+                log.debug(
+                    f"Detected system language: {sys_lang_code}, using: {self._current_lang}"
+                )
         except Exception as e:
             log.warning(f"Failed to detect system language: {e}. Fallback to zh_CN.")
             self._current_lang = "zh_CN"
 
-    def _load_locales(self):
+    def _load_locales(self) -> None:
         """Load all JSON files from locales directory."""
         if not os.path.exists(self._locales_dir):
             log.warning(f"Locales directory not found: {self._locales_dir}")
@@ -51,19 +57,24 @@ class I18n:
             if filename.endswith(".json"):
                 lang_code = filename[:-5]  # remove .json
                 try:
-                    with open(os.path.join(self._locales_dir, filename), encoding="utf-8") as f:
-                        self._locales[lang_code] = json.load(f)
+                    with open(
+                        os.path.join(self._locales_dir, filename), encoding="utf-8"
+                    ) as f:
+                        # json.load 返回 Any，显式 cast 为 dict[str, Any] 以满足类型检查
+                        self._locales[lang_code] = cast(dict[str, Any], json.load(f))
                     log.debug(f"Loaded locale: {lang_code}")
                 except Exception as e:
                     log.error(f"Failed to load locale {filename}: {e}")
 
-    def t(self, key: str, **kwargs) -> str:
+    def t(self, key: str, **kwargs: Any) -> str:
         """
         Translate key (e.g. 'cli.task.single_start').
         Supports nested keys and format arguments.
         """
         keys = key.split(".")
-        value = self._locales.get(self._current_lang, {})
+        # value can be nested dict or string; use Any to avoid incompatible-assignment when
+        # traversing nested keys
+        value: Any = self._locales.get(self._current_lang, {})
 
         # Traverse
         for k in keys:
@@ -82,7 +93,9 @@ class I18n:
             try:
                 return value.format(**kwargs)
             except Exception as e:
-                log.warning(f"Failed to format string '{value}' with args {kwargs}: {e}")
+                log.warning(
+                    f"Failed to format string '{value}' with args {kwargs}: {e}"
+                )
                 return value
 
         return str(value)

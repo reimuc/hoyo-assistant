@@ -52,4 +52,3 @@ These variables control system behavior outside the main configuration schema:
 - `src/hoyo_assistant/server.py`: interactive scheduler / server console (implements `ServerConfig`,
   `start_interactive_console`, `scheduler_loop` and `execute_task`). Used by the `server` CLI subcommand
   to run scheduled multi/single account runs with an interactive prompt.
-

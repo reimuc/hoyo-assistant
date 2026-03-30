@@ -1,6 +1,6 @@
 import re
 from copy import deepcopy
-from typing import Optional
+from typing import cast
 
 from . import config
 from .constants import (
@@ -21,7 +21,7 @@ headers.pop("Origin")
 headers.pop("Referer")
 
 
-async def login():
+async def login() -> None:
     if not config.config["account"]["cookie"]:
         await config.clear_cookie()
         raise CookieError(t("account.missing_cookie"))
@@ -42,12 +42,17 @@ async def login():
     # 获取 cookie_token
     if require_cookie_token():
         log.info(t("account.fetching_cookie_token"))
-        req = await http.get(API_GET_TOKEN_BY_STOKEN, params={"uid": uid, "stoken": config.config["account"]["stoken"]})
+        req = await http.get(
+            API_GET_TOKEN_BY_STOKEN,
+            params={"uid": uid, "stoken": config.config["account"]["stoken"]},
+        )
         data = await req.json()
         if data["retcode"] != 0:
             await config.clear_stoken()
             raise StokenError(t("account.stoken_invalid"))
-        config.config["account"]["cookie"] += f" cookie_token={data['data']['token']['token']};"
+        config.config["account"]["cookie"] += (
+            f" cookie_token={data['data']['token']['token']};"
+        )
         log.info(t("account.cookie_token_ok"))
 
     # 获取 stoken
@@ -81,20 +86,26 @@ async def login():
         log.info(t("account.cookie_refresh_ok"))
 
 
-def get_login_ticket() -> Optional[str]:
-    ticket_match = re.search(r"login_ticket=(.*?)(?:;|$)", str(config.config["account"]["cookie"]))
+def get_login_ticket() -> str | None:
+    ticket_match = re.search(
+        r"login_ticket=(.*?)(?:;|$)", str(config.config["account"]["cookie"])
+    )
     return ticket_match.group(1) if ticket_match else None
 
 
-def get_mid() -> Optional[str]:
-    mid = re.search(r"(account_mid_v2|ltmid_v2|mid)=(.*?)(?:;|$)", str(config.config["account"]["cookie"]))
+def get_mid() -> str | None:
+    mid = re.search(
+        r"(account_mid_v2|ltmid_v2|mid)=(.*?)(?:;|$)",
+        str(config.config["account"]["cookie"]),
+    )
     return mid.group(2) if mid else None
 
 
-def get_uid():
-    uid = None
+def get_uid() -> str | None:
+    uid: str | None = None
     uid_match = re.search(
-        r"(account_id|ltuid|login_uid|ltuid_v2|account_id_v2)=(\d+)", config.config["account"]["cookie"]
+        r"(account_id|ltuid|login_uid|ltuid_v2|account_id_v2)=(\d+)",
+        config.config["account"]["cookie"],
     )
     if uid_match is None:
         return uid
@@ -110,15 +121,18 @@ async def get_stoken(login_ticket: str, uid: str) -> str:
     )
     data = await response.json()
     if data["retcode"] == 0:
-        return data["data"]["list"][0]["token"]
+        return cast(str, data["data"]["list"][0]["token"])
     else:
         log.error(t("account.login_ticket_expired"))
         await config.clear_cookie()
         raise CookieError(t("account.cookie_invalid"))
 
 
-async def get_cookie_token_by_stoken():
-    if config.config["account"]["stoken"] == "" and config.config["account"]["stuid"] == "":
+async def get_cookie_token_by_stoken() -> str:
+    if (
+        config.config["account"]["stoken"] == ""
+        and config.config["account"]["stuid"] == ""
+    ):
         log.error(t("account.stoken_suid_empty"))
         await config.clear_cookie()
         raise CookieError(t("account.cookie_invalid"))
@@ -130,15 +144,17 @@ async def get_cookie_token_by_stoken():
         log.error(t("account.stoken_fetch_fail"))
         await config.clear_stoken()
         raise StokenError(t("account.stoken_error"))
-    return data["data"]["cookie_token"]
+    return cast(str, data["data"]["cookie_token"])
 
 
 async def update_cookie_token() -> bool:
     log.info(t("account.cookie_refresh_start"))
-    if config.config["account"]["stoken"] == "":
+    if str(config.config["account"]["stoken"]) == "":
         log.warning(t("account.no_stoken_cant_refresh"))
         return False
-    old_token_match = re.search(r"cookie_token=(.*?)(?:;|$)", config.config["account"]["cookie"])
+    old_token_match = re.search(
+        r"cookie_token=(.*?)(?:;|$)", config.config["account"]["cookie"]
+    )
     if old_token_match:
         new_token = await get_cookie_token_by_stoken()
         log.info(t("account.cookie_token_refresh_ok"))
@@ -150,14 +166,19 @@ async def update_cookie_token() -> bool:
     # 更新 cookie_token
     req = await http.get(
         API_GET_TOKEN_BY_STOKEN,
-        params={"uid": config.config["account"]["stuid"], "stoken": config.config["account"]["stoken"]},
+        params={
+            "uid": config.config["account"]["stuid"],
+            "stoken": config.config["account"]["stoken"],
+        },
     )
     data = await req.json()
     if data["retcode"] != 0:
         log.error(t("account.stoken_invalid"))
         await config.clear_stoken()
         return False
-    config.config["account"]["cookie"] += f" cookie_token={data['data']['token']['token']};"
+    config.config["account"]["cookie"] += (
+        f" cookie_token={data['data']['token']['token']};"
+    )
     await config.save_config()
     return True
 
@@ -168,9 +189,7 @@ def require_mid() -> bool:
 
     :return: 是否需要mid
     """
-    if config.config["account"]["stoken"].startswith("v2_"):
-        return True
-    return False
+    return str(config.config["account"]["stoken"]).startswith("v2_")
 
 
 def get_stoken_cookie() -> str:
@@ -195,9 +214,7 @@ def require_cookie_token() -> bool:
 
     :return: 是否需要 cookie_token
     """
-    if config.config["account"]["stoken"].startswith("v2_"):
-        return True
-    return False
+    return str(config.config["account"]["stoken"]).startswith("v2_")
 
 
 def require_stoken() -> bool:
@@ -206,12 +223,10 @@ def require_stoken() -> bool:
 
     :return: 是否需要 stoken
     """
-    if config.config["account"]["stoken"].startswith("v1_"):
-        return True
-    return False
+    return str(config.config["account"]["stoken"]).startswith("v1_")
 
 
-async def get_hk4e_token(game_uid, region):
+async def get_hk4e_token(game_uid: str, region: str) -> str:
     log.info(t("account.fetching_hk4e_token"))
     req = await http.post(
         API_GET_HK4E_TOKEN,
@@ -226,4 +241,4 @@ async def get_hk4e_token(game_uid, region):
     if data["retcode"] != 0:
         log.error(t("account.hk4e_token_fail"))
         raise CookieError(t("account.cookie_invalid"))
-    return data["data"]["token"]
+    return cast(str, data["data"]["token"])

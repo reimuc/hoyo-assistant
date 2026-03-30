@@ -3,6 +3,7 @@ import random
 import string
 import time
 import uuid
+from typing import Any
 
 from .constants import (
     DEFAULT_HEADERS,
@@ -87,7 +88,7 @@ def get_device_id(cookie: str) -> str:
     return str(uuid.uuid3(uuid.NAMESPACE_URL, cookie))
 
 
-def get_item(raw_data: dict) -> str:
+def get_item(raw_data: dict[str, Any]) -> str:
     """
     获取签到的奖励信息
 

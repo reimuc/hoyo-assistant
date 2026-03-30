@@ -1,14 +1,18 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, Field
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 
 class BaseConfigModel(BaseModel):
     model_config = {"extra": "ignore"}
 
 
-def coerce_to_str(v):
+def coerce_to_str(v: Any) -> str:
     return str(v)
 
 
@@ -32,7 +36,9 @@ class DeviceConfig(BaseConfigModel):
 class MihoyoBBSConfig(BaseConfigModel):
     enable: bool = True
     checkin: bool = True
-    checkin_list: list[int] = Field(default_factory=lambda: [5, 2], description="Forum IDs to checkin")
+    checkin_list: list[int] = Field(
+        default_factory=lambda: [5, 2], description="Forum IDs to checkin"
+    )
     read: bool = True
     like: bool = True
     cancel_like: bool = True
@@ -41,7 +47,9 @@ class MihoyoBBSConfig(BaseConfigModel):
 
 class GameItemConfig(BaseConfigModel):
     checkin: bool = False
-    black_list: list[str] = Field(default_factory=list, description="List of blacklisted account IDs")
+    black_list: list[str] = Field(
+        default_factory=list, description="List of blacklisted account IDs"
+    )
 
 
 class BaseGamesConfig(BaseConfigModel):
@@ -61,7 +69,9 @@ class GamesCNConfig(BaseGamesConfig):
     )
     retries: int = 3
     # Override defaults where needed
-    genshin: GameItemConfig = Field(default_factory=lambda: GameItemConfig(checkin=True))
+    genshin: GameItemConfig = Field(
+        default_factory=lambda: GameItemConfig(checkin=True)
+    )
 
 
 class GamesOSConfig(BaseGamesConfig):
@@ -110,7 +120,9 @@ class GeniusInvokationConfig(BaseConfigModel):
 
 class CompetitionConfig(BaseConfigModel):
     enable: bool = False
-    genius_invokation: GeniusInvokationConfig = Field(default_factory=GeniusInvokationConfig)
+    genius_invokation: GeniusInvokationConfig = Field(
+        default_factory=GeniusInvokationConfig
+    )
 
 
 class WebActivityConfig(BaseConfigModel):
@@ -131,7 +143,10 @@ class HoyoSettings(BaseSettings):
     web_activity: WebActivityConfig = Field(default_factory=WebActivityConfig)
 
     model_config = SettingsConfigDict(
-        env_prefix="HOYO_ASSISTANT_", env_nested_delimiter="__", case_sensitive=False, extra="ignore"
+        env_prefix="HOYO_ASSISTANT_",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+        extra="ignore",
     )
 
     @classmethod

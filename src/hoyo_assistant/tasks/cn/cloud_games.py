@@ -1,8 +1,16 @@
 import asyncio
+import functools
 import random
+from collections.abc import Callable
+from typing import Any
 
 from ...core import config, tools
-from ...core.constants import API_CLOUD_GENSHIN, API_CLOUD_GENSHIN_SIGN, API_CLOUD_ZZZ, API_CLOUD_ZZZ_SIGN
+from ...core.constants import (
+    API_CLOUD_GENSHIN,
+    API_CLOUD_GENSHIN_SIGN,
+    API_CLOUD_ZZZ,
+    API_CLOUD_ZZZ_SIGN,
+)
 from ...core.i18n import t
 from ...core.loghelper import log
 from ...core.models import CloudGameInfo
@@ -22,7 +30,14 @@ async def clear_cookie(code: str) -> None:
 
 class CloudGame:
     def __init__(
-        self, game: str, url: str, token: str, hostname: str | None, game_biz: str, coin_name: str, clear_cookie_func
+        self,
+        game: str,
+        url: str,
+        token: str,
+        hostname: str | None,
+        game_biz: str,
+        coin_name: str,
+        clear_cookie_func: Callable[[], Any],
     ) -> None:
         self.game = game
         self.url = url
@@ -53,7 +68,9 @@ class CloudGame:
                 send_free_time = int(free_time["send_freetime"])
 
                 if send_free_time > 0:
-                    ret_msg += t("games.cloud.success", game=self.game, time=send_free_time)
+                    ret_msg += t(
+                        "games.cloud.success", game=self.game, time=send_free_time
+                    )
                 else:
                     if free_seconds < 600:
                         await asyncio.sleep(random.randint(3, 6))
@@ -62,7 +79,11 @@ class CloudGame:
                         _free_time = _data["data"]["free_time"]
                         get_free_time = int(_free_time["free_time"]) - free_seconds
                         if get_free_time > 0:
-                            ret_msg += t("games.cloud.success", game=self.game, time=get_free_time)
+                            ret_msg += t(
+                                "games.cloud.success",
+                                game=self.game,
+                                time=get_free_time,
+                            )
                         else:
                             ret_msg += t("games.cloud.limit_fail", game=self.game)
                     else:
@@ -111,7 +132,7 @@ async def run_task() -> str:
                 game.hostname,
                 game.biz,
                 t(f"games.cloud.{game.name}_coin"),
-                lambda: clear_cookie(game.name),
+                functools.partial(clear_cookie, game.name),
             )
             ret_msg += await game_task.check_in() + "\n\n"
 

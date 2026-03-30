@@ -3,6 +3,8 @@ import asyncio
 import json
 import os
 import sys
+from contextlib import suppress
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -12,16 +14,14 @@ from .core import config
 from .runner import multi_account, single_account
 
 
-def _configure_stdio_encoding():
+def _configure_stdio_encoding() -> None:
     """Prefer UTF-8 console output to avoid emoji encoding failures on Windows."""
     for stream_name in ("stdout", "stderr"):
         stream = getattr(sys, stream_name, None)
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):
-            try:
+            with suppress(OSError, ValueError):
                 reconfigure(encoding="utf-8", errors="replace")
-            except Exception:
-                pass
 
 
 _configure_stdio_encoding()
@@ -30,7 +30,10 @@ _configure_stdio_encoding()
 def _is_interactive_terminal() -> bool:
     stdout = getattr(sys, "stdout", None)
     stderr = getattr(sys, "stderr", None)
-    return bool(getattr(stdout, "isatty", lambda: False)() and getattr(stderr, "isatty", lambda: False)())
+    return bool(
+        getattr(stdout, "isatty", lambda: False)()
+        and getattr(stderr, "isatty", lambda: False)()
+    )
 
 
 def _use_rich_output() -> bool:
@@ -46,14 +49,16 @@ RICH_OUTPUT = _use_rich_output()
 console = Console(no_color=not RICH_OUTPUT, force_terminal=RICH_OUTPUT)
 
 
-def cli_print(message: str, style: str | None = None):
+def cli_print(message: str, style: str | None = None) -> None:
     if style and RICH_OUTPUT:
         console.print(f"[{style}]{message}[/{style}]")
     else:
         console.print(message)
 
 
-def cli_panel(message: str, title: str | None = None, border_style: str = "cyan"):
+def cli_panel(
+    message: str, title: str | None = None, border_style: str = "cyan"
+) -> None:
     if RICH_OUTPUT:
         console.print(Panel(message, title=title, border_style=border_style))
     else:
@@ -62,7 +67,7 @@ def cli_panel(message: str, title: str | None = None, border_style: str = "cyan"
         console.print(message)
 
 
-def print_banner():
+def print_banner() -> None:
     """Print the application banner."""
     from .core.i18n import t
 
@@ -80,7 +85,7 @@ def print_banner():
         )
 
 
-def _resolve_run_mode(args) -> str:
+def _resolve_run_mode(args: Any) -> str:
     if getattr(args, "multi", False):
         return "multi"
     # Auto-detect multi mode if multiple configs provided
@@ -90,16 +95,20 @@ def _resolve_run_mode(args) -> str:
     return "single"
 
 
-def build_cli_overrides(args, run_mode: str) -> tuple[str | list[str] | None, dict, str | None]:
+def build_cli_overrides(
+    args: Any, run_mode: str
+) -> tuple[str | list[str] | None, dict[str, Any], str | None]:
     """Build runtime config overrides from CLI arguments without mutating process env."""
-    overrides: dict = {}
+    overrides: dict[str, Any] = {}
     config_target: str | list[str] | None = None
     raw_push_config = getattr(args, "push_config", None)
     push_config_path: str | None = None
 
     # Normalize push_config_path to absolute path to avoid relative path resolution bugs
     if raw_push_config:
-        push_config_path = str(os.path.abspath(os.path.expanduser(str(raw_push_config))))
+        push_config_path = str(
+            os.path.abspath(os.path.expanduser(str(raw_push_config)))
+        )
 
     # Global --config can be one or more paths.
     config_val = getattr(args, "configs", None)
@@ -114,7 +123,9 @@ def build_cli_overrides(args, run_mode: str) -> tuple[str | list[str] | None, di
         else:
             config_target = str(config_val)
 
-    normalized_push_config: str | None = str(push_config_path) if push_config_path is not None else None
+    normalized_push_config: str | None = (
+        str(push_config_path) if push_config_path is not None else None
+    )
     return config_target, overrides, normalized_push_config
 
 
@@ -125,15 +136,21 @@ def _bootstrap_config_target(config_target: str | list[str] | None) -> str | Non
     return config_target
 
 
-async def run_single(push_config_path: str | None = None):
+async def run_single(push_config_path: str | None = None) -> None:
     """Execute single account task."""
     from .core.i18n import t
 
     cli_print(t("cli.task.single_start"), style="green")
     try:
-        run_code, run_msg = await single_account.run_once_and_push(push_config_path=push_config_path)
+        run_code, run_msg = await single_account.run_once_and_push(
+            push_config_path=push_config_path
+        )
         if run_msg:
-            cli_panel(run_msg, title=t("cli.task.exec_report"), border_style="green" if run_code == 0 else "red")
+            cli_panel(
+                run_msg,
+                title=t("cli.task.exec_report"),
+                border_style="green" if run_code == 0 else "red",
+            )
     except Exception as e:
         from .core.i18n import t
 
@@ -145,7 +162,7 @@ async def run_multi_async(
     target_path: str | list[str] | None = None,
     push_config_path: str | None = None,
     use_env: bool = True,
-):
+) -> None:
     """Execute multi-account task async."""
     from .core.i18n import t
 
@@ -155,10 +172,14 @@ async def run_multi_async(
     )
     from .core.i18n import t
 
-    cli_panel(task_push_message, title=t("cli.task.exec_report"), border_style="green" if task_status == 0 else "red")
+    cli_panel(
+        task_push_message,
+        title=t("cli.task.exec_report"),
+        border_style="green" if task_status == 0 else "red",
+    )
 
 
-def run_multi_manager(args, push_config_path: str | None = None):
+def run_multi_manager(args: Any, push_config_path: str | None = None) -> None:
     """Execution logic for multi account command"""
 
     target_path: str | list[str] | None = None
@@ -177,10 +198,12 @@ def run_multi_manager(args, push_config_path: str | None = None):
     else:
         target_path = None
 
-    asyncio.run(run_multi_async(target_path, push_config_path=push_config_path, use_env=use_env))
+    asyncio.run(
+        run_multi_async(target_path, push_config_path=push_config_path, use_env=use_env)
+    )
 
 
-def print_effective_config():
+def print_effective_config() -> None:
     """Print current effective config with redacted secrets."""
     from .core.config import get_effective_config
     from .core.i18n import t
@@ -190,7 +213,7 @@ def print_effective_config():
     cli_panel(payload, title=t("cli.task.effective_config"), border_style="cyan")
 
 
-def validate_config(config_path, show_effective: bool = False):
+def validate_config(config_path: str | None, show_effective: bool = False) -> None:
     """Validate the configuration file at config_path against the schema."""
     from .core.config import validate_config_file
     from .core.i18n import t
@@ -216,7 +239,7 @@ def validate_config(config_path, show_effective: bool = False):
         print_effective_config()
 
 
-def generate_template(output_path):
+def generate_template(output_path: str | None) -> None:
     """Generate a default configuration template."""
     import yaml
 
@@ -235,7 +258,12 @@ def generate_template(output_path):
             save_config_sync(output_path, DEFAULT_CONFIG)
             cli_print(t("cli.task.template_saved", path=output_path), style="green")
         else:
-            rendered = yaml.dump(DEFAULT_CONFIG, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            rendered = yaml.dump(
+                DEFAULT_CONFIG,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+            )
             sys.stdout.write(rendered)
             if not rendered.endswith("\n"):
                 sys.stdout.write("\n")
@@ -245,7 +273,7 @@ def generate_template(output_path):
         cli_print(t("cli.task.template_save_fail", error=e), style="red")
 
 
-def fill_config_command(config_path: str, create_backup: bool = True):
+def fill_config_command(config_path: str, create_backup: bool = True) -> None:
     """Auto-fill and format a config file."""
     from .core.config import auto_fill_config_file
     from .core.i18n import t
@@ -266,19 +294,26 @@ def fill_config_command(config_path: str, create_backup: bool = True):
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     print_banner()
     from .core.i18n import t
 
     parser = argparse.ArgumentParser(
-        description=t("cli.parser.description"), formatter_class=argparse.RawTextHelpFormatter
+        description=t("cli.parser.description"),
+        formatter_class=argparse.RawTextHelpFormatter,
     )
 
     # Global args
-    parser.add_argument("-c", "--config", dest="configs", nargs="+", help=t("cli.parser.config"))
+    parser.add_argument(
+        "-c", "--config", dest="configs", nargs="+", help=t("cli.parser.config")
+    )
     parser.add_argument("-p", "--push-config", help=t("cli.parser.push_config"))
-    parser.add_argument("-m", "--multi", action="store_true", help=t("cli.parser.multi"))
-    parser.add_argument("-d", "--debug", action="store_true", help=t("cli.parser.debug"))
+    parser.add_argument(
+        "-m", "--multi", action="store_true", help=t("cli.parser.multi")
+    )
+    parser.add_argument(
+        "-d", "--debug", action="store_true", help=t("cli.parser.debug")
+    )
 
     subparsers = parser.add_subparsers(dest="command", help=t("cli.parser.commands"))
 
@@ -300,8 +335,12 @@ def main():
 
     # Fill config command
     fill_config_parser = subparsers.add_parser("format", help=t("cli.parser.format"))
-    fill_config_parser.add_argument("-c", "--config", required=True, help=t("cli.parser.format_config"))
-    fill_config_parser.add_argument("--no-backup", action="store_true", help=t("cli.parser.format_no_backup"))
+    fill_config_parser.add_argument(
+        "-c", "--config", required=True, help=t("cli.parser.format_config")
+    )
+    fill_config_parser.add_argument(
+        "--no-backup", action="store_true", help=t("cli.parser.format_no_backup")
+    )
 
     args = parser.parse_args()
 
@@ -311,10 +350,16 @@ def main():
         # Server mode is an independent scheduler entrypoint.
         # It always uses default local config discovery and interactive mode switch.
         run_mode = "multi"
+        # Provide explicit type annotations so mypy does not complain about implicitly Optional variables
+        config_target: str | list[str] | None
+        cli_overrides: dict[str, Any]
+        push_config_path: str | None
         config_target, cli_overrides, push_config_path = None, {}, None
     else:
         run_mode = _resolve_run_mode(args)
-        config_target, cli_overrides, push_config_path = build_cli_overrides(args, run_mode)
+        config_target, cli_overrides, push_config_path = build_cli_overrides(
+            args, run_mode
+        )
 
     # Reload config with runtime overrides (CLI > env > YAML).
     # Server mode intentionally ignores CLI/env runtime overrides for scheduler isolation.
@@ -323,7 +368,10 @@ def main():
             config.reload_config(config_file=None, overrides={}, use_env=False)
         else:
             # Bootstrap must be a single file path even when runtime target is a list.
-            config.reload_config(config_file=_bootstrap_config_target(config_target), overrides=cli_overrides)
+            config.reload_config(
+                config_file=_bootstrap_config_target(config_target),
+                overrides=cli_overrides,
+            )
     except ValueError as e:
         cli_print(t("cli.task.config_error", error=e), style="red")
         sys.exit(1)

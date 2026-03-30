@@ -66,7 +66,11 @@ async def run_multi_account(
         config_pool.extend(_collect_config_pool(target_paths))
     else:
         # Default: search config/ dir
-        search_path = config.path if config.path and os.path.isdir(config.path) else os.path.join(os.getcwd(), "config")
+        search_path = (
+            config.path
+            if config.path and os.path.isdir(config.path)
+            else os.path.join(os.getcwd(), "config")
+        )
         if os.path.exists(search_path):
             for f in os.listdir(search_path):
                 if f.endswith((".yaml", ".yml")):
@@ -78,7 +82,7 @@ async def run_multi_account(
 
     log.info(t("multi.config_found", count=len(config_pool)))
 
-    results = {"ok": [], "close": [], "error": [], "captcha": []}
+    results: dict[str, list[str]] = {"ok": [], "close": [], "error": [], "captcha": []}
 
     for dir_path, file_name in config_pool:
         log.info(t("multi.executing", file=file_name))
@@ -89,16 +93,27 @@ async def run_multi_account(
             run_code, _ = await run_once(full_path, use_env=use_env)
         except (CookieError, StokenError) as e:
             results["error"].append(file_name)
-            error_msg = t("multi.cookie_error") if isinstance(e, CookieError) else t("multi.stoken_error")
+            error_msg = (
+                t("multi.cookie_error")
+                if isinstance(e, CookieError)
+                else t("multi.stoken_error")
+            )
             if _is_push_enabled():
                 if push_config_path:
-                    await push.push(StatusCode.FAILURE.value, error_msg, config_path=push_config_path)
+                    await push.push(
+                        StatusCode.FAILURE.value,
+                        error_msg,
+                        config_path=push_config_path,
+                    )
                 else:
                     await push.push(StatusCode.FAILURE.value, error_msg)
         else:
             if run_code == StatusCode.SUCCESS.value:
                 results["ok"].append(file_name)
-            elif run_code in (StatusCode.FAILURE.value, StatusCode.PARTIAL_FAILURE.value):
+            elif run_code in (
+                StatusCode.FAILURE.value,
+                StatusCode.PARTIAL_FAILURE.value,
+            ):
                 results["error"].append(file_name)
             elif run_code == StatusCode.CAPTCHA_TRIGGERED.value:
                 results["captcha"].append(file_name)

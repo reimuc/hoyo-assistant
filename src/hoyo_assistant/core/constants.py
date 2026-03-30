@@ -127,10 +127,16 @@ API_OS_REFERER: Final[str] = "https://act.hoyolab.com/"
 
 # User & Token APIs
 API_ACCOUNT_INFO: Final[str] = f"{API_WEB}/binding/api/getUserGameRolesByCookie"
-API_GET_TOKEN_BY_STOKEN: Final[str] = f"{API_PASSPORT}/account/ma-cn-session/app/getTokenBySToken"
-API_BBS_ACCOUNT_INFO: Final[str] = "https://webapi.account.mihoyo.com/Api/cookie_accountinfo_by_loginticket"
+API_GET_TOKEN_BY_STOKEN: Final[str] = (
+    f"{API_PASSPORT}/account/ma-cn-session/app/getTokenBySToken"
+)
+API_BBS_ACCOUNT_INFO: Final[str] = (
+    "https://webapi.account.mihoyo.com/Api/cookie_accountinfo_by_loginticket"
+)
 API_BBS_GET_MULTI_TOKEN: Final[str] = f"{API_WEB}/auth/api/getMultiTokenByLoginTicket"
-API_BBS_GET_COOKIE_TOKEN: Final[str] = f"{API_WEB}/auth/api/getCookieAccountInfoBySToken"
+API_BBS_GET_COOKIE_TOKEN: Final[str] = (
+    f"{API_WEB}/auth/api/getCookieAccountInfoBySToken"
+)
 
 # BBS Tasks & Posts
 API_BBS_TASKS_LIST: Final[str] = f"{API_BBS}/apihub/wapi/getUserMissionsState"
@@ -144,7 +150,9 @@ API_BBS_CAPTCHA_VERIFY: Final[str] = f"{API_BBS}/misc/api/verifyVerification"
 
 # Game Check-in
 CN_GAME_LANG: Final[str] = "zh-cn"
-API_CN_GAME_CHECKIN_REWARDS: Final[str] = f"{API_WEB}/event/luna/home?lang={CN_GAME_LANG}"
+API_CN_GAME_CHECKIN_REWARDS: Final[str] = (
+    f"{API_WEB}/event/luna/home?lang={CN_GAME_LANG}"
+)
 API_CN_GAME_IS_SIGN: Final[str] = f"{API_WEB}/event/luna/info?lang={CN_GAME_LANG}"
 API_CN_GAME_SIGN: Final[str] = f"{API_WEB}/event/luna/sign"
 
@@ -153,27 +161,51 @@ API_CLOUD_GENSHIN_SIGN: Final[str] = f"{API_CLOUD_GENSHIN}/hk4e_cg_cn/wallet/wal
 API_CLOUD_ZZZ_SIGN: Final[str] = f"{API_CLOUD_ZZZ}/nap_cn/cg/wallet/wallet/get"
 
 # Cloud Games - OS
-API_CLOUD_GENSHIN_SIGN_OS: Final[str] = f"{API_CLOUD_GENSHIN_OS}/hk4e_global/cg/wallet/wallet/get"
-API_CLOUD_ZZZ_SIGN_OS: Final[str] = f"{API_CLOUD_GENSHIN_OS}/nap_global/cg/wallet/wallet/get"
+API_CLOUD_GENSHIN_SIGN_OS: Final[str] = (
+    f"{API_CLOUD_GENSHIN_OS}/hk4e_global/cg/wallet/wallet/get"
+)
+API_CLOUD_ZZZ_SIGN_OS: Final[str] = (
+    f"{API_CLOUD_GENSHIN_OS}/nap_global/cg/wallet/wallet/get"
+)
 
 # HK4E / Genius Invokation
 API_HK4E_TOKEN_GET_INFO: Final[str] = f"{API_WEB}/common/badge/v1/login/info"
 API_GET_HK4E_TOKEN: Final[str] = f"{API_WEB}/common/badge/v1/login/account"
-API_GENIUS_INVOKATION_STATUS: Final[str] = f"{API_HK4E}/event/geniusinvokationtcg/rd_info"
-API_GENIUS_INVOKATION_TASK_LIST: Final[str] = f"{API_HK4E}/event/geniusinvokationtcg/adventure_task_list"
-API_GENIUS_INVOKATION_GET_AWARD: Final[str] = f"{API_HK4E}/event/geniusinvokationtcg/award_adventure_task"
-API_GENIUS_INVOKATION_FINISH_TASK: Final[str] = f"{API_HK4E}/event/geniusinvokationtcg/finish_adventure_task"
+API_GENIUS_INVOKATION_STATUS: Final[str] = (
+    f"{API_HK4E}/event/geniusinvokationtcg/rd_info"
+)
+API_GENIUS_INVOKATION_TASK_LIST: Final[str] = (
+    f"{API_HK4E}/event/geniusinvokationtcg/adventure_task_list"
+)
+API_GENIUS_INVOKATION_GET_AWARD: Final[str] = (
+    f"{API_HK4E}/event/geniusinvokationtcg/award_adventure_task"
+)
+API_GENIUS_INVOKATION_FINISH_TASK: Final[str] = (
+    f"{API_HK4E}/event/geniusinvokationtcg/finish_adventure_task"
+)
 
 # ZZZ Check-in
-API_ZZZ_GAME_CHECKIN_REWARDS: Final[str] = f"{API_ZZZ_WEB}/event/luna/zzz/home?lang={CN_GAME_LANG}"
-API_ZZZ_GAME_IS_SIGN: Final[str] = f"{API_ZZZ_WEB}/event/luna/zzz/info?lang={CN_GAME_LANG}"
+API_ZZZ_GAME_CHECKIN_REWARDS: Final[str] = (
+    f"{API_ZZZ_WEB}/event/luna/zzz/home?lang={CN_GAME_LANG}"
+)
+API_ZZZ_GAME_IS_SIGN: Final[str] = (
+    f"{API_ZZZ_WEB}/event/luna/zzz/info?lang={CN_GAME_LANG}"
+)
 API_ZZZ_GAME_SIGN: Final[str] = f"{API_ZZZ_WEB}/event/luna/zzz/sign"
 
 # CN Game Signin Referers (Base)
-REF_BH2_SIGN: Final[str] = "https://webstatic.mihoyo.com/bbs/event/signin/bh2/index.html"
-REF_BH3_SIGN: Final[str] = "https://webstatic.mihoyo.com/bbs/event/signin/bh3/index.html"
-REF_NXX_SIGN: Final[str] = "https://webstatic.mihoyo.com/bbs/event/signin/nxx/index.html"
-REF_GENSHIN_SIGN: Final[str] = "https://webstatic.mihoyo.com/bbs/event/signin-ys/index.html"
+REF_BH2_SIGN: Final[str] = (
+    "https://webstatic.mihoyo.com/bbs/event/signin/bh2/index.html"
+)
+REF_BH3_SIGN: Final[str] = (
+    "https://webstatic.mihoyo.com/bbs/event/signin/bh3/index.html"
+)
+REF_NXX_SIGN: Final[str] = (
+    "https://webstatic.mihoyo.com/bbs/event/signin/nxx/index.html"
+)
+REF_GENSHIN_SIGN: Final[str] = (
+    "https://webstatic.mihoyo.com/bbs/event/signin-ys/index.html"
+)
 
 # OS Game Signin Base URL
 API_OS_ACT: Final[str] = "https://sg-hk4e-api.hoyolab.com/event/sol"

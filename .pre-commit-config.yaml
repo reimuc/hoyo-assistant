@@ -22,4 +22,9 @@ repos:
     hooks:
       - id: mypy
         files: ^src/
-        additional_dependencies: [ types-all ]
+        additional_dependencies:
+          - types-pytz
+          - types-PyYAML
+          - types-aiofiles
+          - types-cachetools
+          - types-setuptools

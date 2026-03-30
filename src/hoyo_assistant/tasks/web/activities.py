@@ -5,7 +5,7 @@ from ...core.i18n import t
 from ...core.loghelper import log
 
 
-async def run_task():
+async def run_task() -> None:
     """根据配置执行网页活动任务"""
     if not config.config.get("web_activity", {}).get("enable", False):
         log.info(t("web_activity.not_enabled"))

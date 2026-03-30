@@ -2,7 +2,6 @@ import asyncio
 import os
 import random
 import re
-from typing import Optional
 
 from ..core import config, login, push, tools
 from ..core.constants import StatusCode
@@ -11,8 +10,7 @@ from ..core.i18n import t
 from ..core.loghelper import log
 from ..tasks.cn import cloud_games, game_signin
 from ..tasks.community import miyoushe
-from ..tasks.os import cloud_games as os_cloud_games
-from ..tasks.os import game_signin as os_game_signin
+from ..tasks.os import cloud_games as os_cloud_games, game_signin as os_game_signin
 from ..tasks.web import activities as web_activities
 
 
@@ -26,7 +24,9 @@ def _normalize_output_text(text: str) -> str:
     return normalized.strip()
 
 
-async def initialize_config(config_path: Optional[str] = None, use_env: bool = True) -> tuple[bool, Optional[str]]:
+async def initialize_config(
+    config_path: str | None = None, use_env: bool = True
+) -> tuple[bool, str | None]:
     # Force reload if config_path provided (multi-account must load each file separately).
     # For single-account, reload only on first run if no config_path was ever loaded.
     if config_path:
@@ -44,7 +44,13 @@ async def initialize_config(config_path: Optional[str] = None, use_env: bool = T
 
 async def handle_login() -> None:
     account_cfg = config.config["account"]
-    if any((account_cfg["stuid"] == "", account_cfg["stoken"] == "", account_cfg["mid"] == "")):
+    if any(
+        (
+            account_cfg["stuid"] == "",
+            account_cfg["stoken"] == "",
+            account_cfg["mid"] == "",
+        )
+    ):
         if config.config["mihoyobbs"]["enable"]:
             await login.login()
             await asyncio.sleep(random.randint(3, 8))
@@ -111,7 +117,9 @@ async def run_web_activity_tasks() -> None:
         await web_activities.run_task()
 
 
-async def run_once(config_path: Optional[str] = None, use_env: bool = True) -> tuple[int, str]:
+async def run_once(
+    config_path: str | None = None, use_env: bool = True
+) -> tuple[int, str]:
     success, msg = await initialize_config(config_path, use_env=use_env)
     if not success:
         return StatusCode.FAILURE.value, msg or ""
@@ -162,10 +170,10 @@ def _is_push_enabled() -> bool:
 
 
 async def run_once_and_push(
-    config_path: Optional[str] = None,
-    push_config_path: Optional[str] = None,
+    config_path: str | None = None,
+    push_config_path: str | None = None,
     use_env: bool = True,
-):
+) -> tuple[int, str]:
     # Keep compatibility with test/mocked callables that only accept positional config_path.
     if use_env:
         run_code, run_msg = await run_once(config_path)

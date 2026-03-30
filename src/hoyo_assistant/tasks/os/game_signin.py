@@ -97,9 +97,22 @@ async def hoyo_checkin(event_base_url: str, act_id: str, game_name: str) -> str:
         log.error(ret_msg)
         return ret_msg
 
-    log.info(t("games.os.checkin_success", game=game_name, name=reward["name"], count=reward["cnt"]))
+    log.info(
+        t(
+            "games.os.checkin_success",
+            game=game_name,
+            name=reward["name"],
+            count=reward["cnt"],
+        )
+    )
 
-    ret_msg = t("games.os.sign_success_msg", game=game_name, days=days, name=reward["name"], count=reward["cnt"])
+    ret_msg = t(
+        "games.os.sign_success_msg",
+        game=game_name,
+        days=days,
+        name=reward["name"],
+        count=reward["cnt"],
+    )
     return ret_msg
 
 
@@ -108,18 +121,34 @@ async def run_task() -> str:
     ret_parts: list[str] = []
     # Genshin
     if config.config["games"]["os"].get("genshin", {}).get("checkin"):
-        ret_parts.append(await hoyo_checkin(API_OS_ACT, ACT_ID_OS_GENSHIN, t("games.names.genshin")))
+        ret_parts.append(
+            await hoyo_checkin(API_OS_ACT, ACT_ID_OS_GENSHIN, t("games.names.genshin"))
+        )
     # HSR
     if config.config["games"]["os"].get("honkai_sr", {}).get("checkin"):
-        ret_parts.append(await hoyo_checkin(API_OS_ACT_HSR, ACT_ID_OS_HONKAI_SR, t("games.names.honkai_sr")))
+        ret_parts.append(
+            await hoyo_checkin(
+                API_OS_ACT_HSR, ACT_ID_OS_HONKAI_SR, t("games.names.honkai_sr")
+            )
+        )
     # HI3
     if config.config["games"]["os"].get("honkai3rd", {}).get("checkin"):
-        ret_parts.append(await hoyo_checkin(API_OS_ACT_HI3, ACT_ID_OS_HONKAI3RD, t("games.names.honkai3rd")))
+        ret_parts.append(
+            await hoyo_checkin(
+                API_OS_ACT_HI3, ACT_ID_OS_HONKAI3RD, t("games.names.honkai3rd")
+            )
+        )
     # ToT
     if config.config["games"]["os"].get("tears_of_themis", {}).get("checkin"):
-        ret_parts.append(await hoyo_checkin(API_OS_ACT, ACT_ID_OS_TEARS_OF_THEMIS, t("games.names.tears_of_themis")))
+        ret_parts.append(
+            await hoyo_checkin(
+                API_OS_ACT, ACT_ID_OS_TEARS_OF_THEMIS, t("games.names.tears_of_themis")
+            )
+        )
     # ZZZ
     if config.config["games"]["os"].get("zzz", {}).get("checkin"):
-        ret_parts.append(await hoyo_checkin(API_OS_ACT_ZZZ, ACT_ID_OS_ZZZ, t("games.names.zzz")))
+        ret_parts.append(
+            await hoyo_checkin(API_OS_ACT_ZZZ, ACT_ID_OS_ZZZ, t("games.names.zzz"))
+        )
 
     return "\t".join(part for part in ret_parts if part)

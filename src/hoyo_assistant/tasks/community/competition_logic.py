@@ -14,6 +14,6 @@ def cookie_get_hk4e_token(cookies: str) -> str:
         return ""
 
 
-def run_task():
+def run_task() -> str:
     result = ""
     return result
