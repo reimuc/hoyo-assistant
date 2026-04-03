@@ -1,65 +1,41 @@
+"""Base class for cloud game sign-in tasks."""
+
 import asyncio
-import functools
 import random
 from collections.abc import Callable
 from typing import Any
 
-from ...core import config as hoyo_config, http, log, t, tools
-from ...core.constants import (
-    API_CLOUD_GENSHIN,
-    API_CLOUD_GENSHIN_SIGN,
-    API_CLOUD_ZZZ,
-    API_CLOUD_ZZZ_SIGN,
-)
-from ...core.models import CloudGameInfo
-
-CLOUD_GAMES = [
-    CloudGameInfo("genshin", API_CLOUD_GENSHIN_SIGN, "hk4e_cn", API_CLOUD_GENSHIN),
-    CloudGameInfo("zzz", API_CLOUD_ZZZ_SIGN, "nap_cn", API_CLOUD_ZZZ),
-]
+from ...core import http, log, t, tools
 
 
-async def clear_cookie(code: str) -> None:
-    if (
-        "cloud_games" in hoyo_config.config
-        and "cn" in hoyo_config.config["cloud_games"]
-    ):
-        hoyo_config.config["cloud_games"]["cn"].setdefault(code, {})["token"] = ""
-        await hoyo_config.save_config()
+class BaseCloudGame:
+    """Base class for cloud game sign-in functionality."""
 
-
-class CloudGame:
     def __init__(
         self,
         game: str,
         url: str,
-        token: str,
-        hostname: str | None,
-        game_biz: str,
         coin_name: str,
         clear_cookie_func: Callable[[], Any],
+        headers: dict[str, str],
     ) -> None:
         self.game = game
         self.url = url
         self.coin_name = coin_name
         self.clear_cookie_func = clear_cookie_func
-        self.headers = {
-            "Host": hostname,
-            "Accept": "*/*",
-            "Referer": "https://app.mihoyo.com",
-            "x-rpc-combo_token": token,
-            "x-rpc-cg_game_biz": game_biz,
-            "Accept-Encoding": "gzip, deflate",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36",
-        }
+        self.headers = headers
 
-    async def check_in(self) -> str:
+    async def check_in(self, *, retry_on_limit: bool = False) -> str:
+        """Perform cloud game sign-in.
+
+        Args:
+            retry_on_limit: Whether to retry when limit not reached (CN specific).
+        """
         log.info(t("games.cloud.checkin_start", game=self.game))
         ret_msg = ""
 
         try:
             res = await http.get(url=self.url, headers=self.headers)
-            print(res.text())
             data = await res.json()
 
             if data["retcode"] == 0:
@@ -72,7 +48,8 @@ class CloudGame:
                         "games.cloud.success", game=self.game, time=send_free_time
                     )
                 else:
-                    if free_seconds < 600:
+                    if retry_on_limit and free_seconds < 600:
+                        # CN-specific retry logic
                         await asyncio.sleep(random.randint(3, 6))
                         _res = await http.get(url=self.url, headers=self.headers)
                         _data = await _res.json()
@@ -116,24 +93,3 @@ class CloudGame:
             log.error(err_msg)
             ret_msg += err_msg
         return ret_msg
-
-
-async def run_task() -> str:
-    conf = hoyo_config.config["cloud_games"]["cn"]
-    log.info(t("games.cloud.start"))
-    ret_msg = ""
-    for game in CLOUD_GAMES:
-        token = conf.get(game.name, {}).get("token")
-        if conf.get(game.name, {}).get("enable") and token != "":
-            game_task = CloudGame(
-                t(f"games.names.{game.name}"),
-                game.api,
-                token,
-                game.hostname,
-                game.biz,
-                t(f"games.cloud.{game.name}_coin"),
-                functools.partial(clear_cookie, game.name),
-            )
-            ret_msg += await game_task.check_in() + "\n\n"
-
-    return ret_msg

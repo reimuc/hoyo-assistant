@@ -2,7 +2,7 @@ import asyncio
 import random
 from typing import Any, cast
 
-from ...core import account, captcha, config, login, tools
+from ...core import CookieError, account, captcha, config, http, log, login, t, tools
 from ...core.constants import (
     ACT_ID_CN_GENSHIN,
     ACT_ID_CN_HONKAI2,
@@ -22,10 +22,6 @@ from ...core.constants import (
     REF_BH3_SIGN,
     REF_NXX_SIGN,
 )
-from ...core.error import CookieError
-from ...core.i18n import t
-from ...core.loghelper import log
-from ...core.request import http
 
 
 class GameCheckin:
@@ -67,16 +63,16 @@ class GameCheckin:
             "Accept": "application/json, text/plain, */*",
             "DS": "",
             "Origin": "https://webstatic.mihoyo.com",
-            "x-rpc-app_version": config.config.get("app_version", MIHOYOBBS_VERSION),
-            "User-Agent": config.config["games"]["cn"]["useragent"],
+            "x-rpc-app_version": config.get("app_version", MIHOYOBBS_VERSION),
+            "User-Agent": config["games"]["cn"]["useragent"],
             "x-rpc-client_type": MIHOYOBBS_CLIENT_TYPE_WEB,
             "Referer": "https://webstatic.mihoyo.com/bbs/event/signin-ys/index.html?act_id="
             + self.act_id,
             "Accept-Encoding": "gzip, deflate",
             "Accept-Language": "zh-CN,en-US;q=0.8",
             "X-Requested-With": "com.mihoyo.hyperion",
-            "Cookie": config.config["account"]["cookie"],
-            "x-rpc-device_id": config.config["device"]["id"],
+            "Cookie": config["account"]["cookie"],
+            "x-rpc-device_id": config["device"]["id"],
         }
 
     async def get_award(self) -> list[Any]:
@@ -132,7 +128,7 @@ class GameCheckin:
 
     async def check_in(self, profile: list[Any]) -> Any:
         header = self.headers.copy()
-        retries = config.config["games"]["cn"].get("retries", 3)
+        retries = config["games"]["cn"].get("retries", 3)
         result = None
         for i in range(1, retries + 1):
             if i > 1:
@@ -179,7 +175,7 @@ class GameCheckin:
             return_data += t("games.cn.no_account_msg", name=self.game_name)
             return return_data
         for profile in self.profiles:
-            if profile[1] in config.config["games"]["cn"][self.game_mid]["black_list"]:
+            if profile[1] in config["games"]["cn"][self.game_mid]["black_list"]:
                 log.info(t("games.cn.blacklisted", uid=profile[1]))
                 continue
             log.info(t("games.cn.checkin_start", name=profile[0]))
@@ -366,7 +362,7 @@ class ZZZ(GameCheckin):
 async def checkin_game(
     game_name: str, game_module: type, game_print_name: str = ""
 ) -> str:
-    game_config = config.config["games"]["cn"][game_name]
+    game_config = config["games"]["cn"][game_name]
     if game_config["checkin"]:
         await asyncio.sleep(random.randint(2, 8))
         if game_print_name == "":

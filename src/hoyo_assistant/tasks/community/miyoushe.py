@@ -4,7 +4,7 @@ import random
 from copy import deepcopy
 from typing import Any, cast
 
-from ...core import captcha, config as hoyo_config, http, log, login, t, tools
+from ...core import StokenError, captcha, config, http, log, login, setting, t, tools
 from ...core.constants import (
     API_BBS_CAPTCHA_VERIFY,
     API_BBS_GET_CAPTCHA,
@@ -19,7 +19,6 @@ from ...core.constants import (
     MIHOYOBBS_VERIFY_KEY,
     MIHOYOBBS_VERSION,
 )
-from ...core.error import StokenError
 
 
 async def wait() -> None:
@@ -31,7 +30,7 @@ class Mihoyobbs:
         self.today_get_coins = 0
         self.today_have_get_coins = 0
         self.have_coins = 0
-        self.bbs_config = hoyo_config.config["mihoyobbs"]
+        self.bbs_config = config["mihoyobbs"]
         # 明确标注 bbs_list 类型以便 mypy 能识别为不包含 None 的字典列表
         tmp_list: list[dict[str, Any]] = []
         for i in self.bbs_config["checkin_list"]:
@@ -46,9 +45,9 @@ class Mihoyobbs:
             "x-rpc-app_version": MIHOYOBBS_VERSION,
             "x-rpc-sys_version": "12",
             "x-rpc-channel": "miyousheluodi",
-            "x-rpc-device_id": hoyo_config.config["device"]["id"],
-            "x-rpc-device_name": hoyo_config.config["device"]["name"],
-            "x-rpc-device_model": hoyo_config.config["device"]["model"],
+            "x-rpc-device_id": config["device"]["id"],
+            "x-rpc-device_name": config["device"]["name"],
+            "x-rpc-device_model": config["device"]["model"],
             "x-rpc-h265_supported": "1",
             "Referer": "https://app.mihoyo.com",
             "x-rpc-verify_key": MIHOYOBBS_VERIFY_KEY,
@@ -68,10 +67,10 @@ class Mihoyobbs:
             "Accept-Encoding": "gzip, deflate",
             "Accept-Language": "zh-CN,en-US;q=0.8",
             "X-Requested-With": "com.mihoyo.hyperion",
-            "Cookie": hoyo_config.config.get("account", {}).get("cookie", ""),
+            "Cookie": config.get("account", {}).get("cookie", ""),
         }
-        if hoyo_config.config["device"]["fp"] != "":
-            self.headers["x-rpc-device_fp"] = hoyo_config.config["device"]["fp"]
+        if config["device"]["fp"] != "":
+            self.headers["x-rpc-device_fp"] = config["device"]["fp"]
         self.task_do = {
             "sign": False,
             "read": False,
@@ -139,11 +138,11 @@ class Mihoyobbs:
         data = await req.json()
         if "err" in data["message"] or data["retcode"] == -100:
             if not update and await login.update_cookie_token():
-                self.task_header["Cookie"] = hoyo_config.config["account"]["cookie"]
+                self.task_header["Cookie"] = config["account"]["cookie"]
                 return await self.get_tasks_list(True)
             else:
                 log.error(t("mihoyobbs.get_tasks_fail"))
-                await hoyo_config.clear_cookie()
+                await setting.clear_cookie()
                 raise StokenError(t("account.stoken_error"))
         self.today_get_coins = data["data"]["can_get_points"]
         self.today_have_get_coins = data["data"]["already_received_points"]
@@ -247,7 +246,7 @@ class Mihoyobbs:
                     break
                 elif data["retcode"] == -100:
                     log.error(t("mihoyobbs.sign_cookie_expired"))
-                    await hoyo_config.clear_stoken()
+                    await setting.clear_stoken()
                     raise StokenError(t("account.stoken_error"))
                 else:
                     log.error(t("mihoyobbs.sign_unknown_error", error=await req.text()))

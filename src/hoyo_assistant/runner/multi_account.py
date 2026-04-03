@@ -3,11 +3,7 @@ import os
 import random
 from collections.abc import Iterable
 
-from ..core import config, push
-from ..core.constants import StatusCode
-from ..core.error import CookieError, StokenError
-from ..core.i18n import t
-from ..core.loghelper import log
+from ..core import CookieError, StatusCode, StokenError, config, log, push, setting, t
 from .single_account import run_once
 
 
@@ -45,7 +41,7 @@ def _is_push_enabled() -> bool:
     env_enable = str(os.getenv("HOYO_ASSISTANT_PUSH__ENABLE", "")).strip().lower()
     if env_enable in {"true", "1", "on", "yes"}:
         return True
-    push_flag = str(config.config.get("push", "")).strip().lower()
+    push_flag = str(config.get("push", "")).strip().lower()
     return push_flag in {"true", "1", "on", "yes"}
 
 
@@ -67,8 +63,8 @@ async def run_multi_account(
     else:
         # Default: search config/ dir
         search_path = (
-            config.path
-            if config.path and os.path.isdir(config.path)
+            setting.path
+            if setting.path and os.path.isdir(setting.path)
             else os.path.join(os.getcwd(), "config")
         )
         if os.path.exists(search_path):

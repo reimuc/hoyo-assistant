@@ -258,7 +258,8 @@
       "sign_fail_account": "{uid}, Check-in failed",
       "sign_fail_captcha": "{uid}, Captcha triggered, check-in failed",
       "sign_success_msg": "{uid} Streak: {days} days, Today's Reward: {reward}",
-      "sign_fail_msg": "Account check-in failed!"
+      "sign_fail_msg": "Account check-in failed!",
+      "task_error": "Task error: {error}"
     },
     "os": {
       "title": "Global Server:",

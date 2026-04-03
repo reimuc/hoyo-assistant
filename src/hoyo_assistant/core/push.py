@@ -11,10 +11,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 from urllib.parse import quote_plus
 
-from . import config as runtime_config
-from .i18n import t
-from .loghelper import log
-from .request import http
+from . import http, log, setting, t
 
 
 def get_push_title(status_id: int) -> str:
@@ -56,7 +53,7 @@ class PushHandler:
             return self.config_name
 
         file_path = self.config_path
-        cfg_path = runtime_config.config_path
+        cfg_path = setting.config_path
         if cfg_path:
             potential_dir = os.path.dirname(cfg_path)
             if os.path.isdir(potential_dir):

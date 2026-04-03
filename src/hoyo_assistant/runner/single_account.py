@@ -3,15 +3,19 @@ import os
 import random
 import re
 
-from ..core import config, login, push, tools
-from ..core.constants import StatusCode
-from ..core.error import CookieError, StokenError
-from ..core.i18n import t
-from ..core.loghelper import log
-from ..tasks.cn import cloud_games, game_signin
-from ..tasks.community import miyoushe
-from ..tasks.os import cloud_games as os_cloud_games, game_signin as os_game_signin
-from ..tasks.web import activities as web_activities
+from ..core import (
+    CookieError,
+    StatusCode,
+    StokenError,
+    config,
+    log,
+    login,
+    push,
+    setting,
+    t,
+    tools,
+)
+from ..tasks import chinese, community, overseas, web
 
 
 def _normalize_output_text(text: str) -> str:
@@ -31,19 +35,19 @@ async def initialize_config(
     # For single-account, reload only on first run if no config_path was ever loaded.
     if config_path:
         # Multi-account: always reload the specified file
-        config.load_config(config_path, use_env=use_env)
-    elif not config.config_path:
+        setting.load_config(config_path, use_env=use_env)
+    elif not setting.config_path:
         # Single-account first run: load default or discover config
-        config.load_config(None, use_env=use_env)
+        setting.load_config(None, use_env=use_env)
 
-    if not config.config.get("enable"):
+    if not config.get("enable"):
         log.warning(t("config.not_enabled"))
         return False, t("config.not_enabled")
     return True, None
 
 
 async def handle_login() -> None:
-    account_cfg = config.config["account"]
+    account_cfg = config["account"]
     if any(
         (
             account_cfg["stuid"] == "",
@@ -51,7 +55,7 @@ async def handle_login() -> None:
             account_cfg["mid"] == "",
         )
     ):
-        if config.config["mihoyobbs"]["enable"]:
+        if config["mihoyobbs"]["enable"]:
             await login.login()
             await asyncio.sleep(random.randint(3, 8))
         account_cfg["cookie"] = tools.tidy_cookie(account_cfg["cookie"])
@@ -66,14 +70,14 @@ async def run_miyoushe_tasks() -> tuple[str, bool]:
     return_data = ""
     raise_stoken = False
 
-    if not config.config["mihoyobbs"]["enable"]:
+    if not config["mihoyobbs"]["enable"]:
         return return_data, raise_stoken
 
-    if config.config["account"]["stoken"] == "StokenError":
+    if config["account"]["stoken"] == "StokenError":
         return t("mihoyobbs.stoken_error"), True
 
     try:
-        bbs = miyoushe.Mihoyobbs()
+        bbs = community.Mihoyobbs()
         task_result = await bbs.run_task()
         return_data += task_result
     except StokenError:
@@ -88,33 +92,33 @@ async def run_miyoushe_tasks() -> tuple[str, bool]:
 
 async def run_cn_signin_tasks() -> str:
     result = []
-    if config.config["games"]["cn"]["enable"]:
+    if config["games"]["cn"]["enable"]:
         # Direct call to module run_task
-        result.append(await game_signin.run_task())
-    if config.config["cloud_games"]["cn"]["enable"]:
+        result.append(await chinese.run_signin_task())
+    if config["cloud_games"]["cn"]["enable"]:
         # Direct call to module run_task
-        result.append(await cloud_games.run_task())
+        result.append(await chinese.run_cloud_task())
     return "\n\n".join(filter(None, result))
 
 
 async def run_os_signin_tasks() -> str:
     result = []
-    if config.config["games"]["os"]["enable"]:
-        os_result = await os_game_signin.run_task()
+    if config["games"]["os"]["enable"]:
+        os_result = await overseas.run_signin_task()
         if os_result:
             result.append(f"{t('games.os.title')}{os_result}")
 
-    if config.config["cloud_games"]["os"]["enable"]:
-        result.append(await os_cloud_games.run_task())
+    if config["cloud_games"]["os"]["enable"]:
+        result.append(await overseas.run_cloud_task())
 
     return "\n\n".join(filter(None, result))
 
 
 async def run_web_activity_tasks() -> None:
     # await run_web_activity_bundle()
-    if config.config["web_activity"]["enable"]:
+    if config["web_activity"]["enable"]:
         log.info(t("web_activity.start_msg"))
-        await web_activities.run_task()
+        await web.run_task()
 
 
 async def run_once(
@@ -133,7 +137,7 @@ async def run_once(
 
     await handle_login()
 
-    if config.config["account"]["cookie"] == "CookieError":
+    if config["account"]["cookie"] == "CookieError":
         raise CookieError(t("account.cookie_invalid"))
 
     return_data = []
@@ -153,23 +157,14 @@ async def run_once(
         return_data.append(cn_result)
     except Exception as e:
         log.error(t("games.cn.task_error", error=e))
-        # 兼容旧的本地化 key，不保证存在
-        return_data.append(
-            t("games.cn.task_error", error=e)
-            if "games.cn.task_error" in t.__dict__
-            else f"CN tasks error: {e}"
-        )
+        return_data.append(t("games.cn.task_error", error=e))
 
     try:
         os_result = await run_os_signin_tasks()
         return_data.append(os_result)
     except Exception as e:
         log.error(t("games.os.task_error", error=e))
-        return_data.append(
-            t("games.os.task_error", error=e)
-            if "games.os.task_error" in t.__dict__
-            else f"OS tasks error: {e}"
-        )
+        return_data.append(t("games.os.task_error", error=e))
 
     try:
         await run_web_activity_tasks()
@@ -196,11 +191,11 @@ def _is_push_enabled() -> bool:
     env_enable = str(os.getenv("HOYO_ASSISTANT_PUSH__ENABLE", "")).strip().lower()
     if env_enable in {"true", "1", "on", "yes"}:
         return True
-    push_flag = str(config.config.get("push", "")).strip().lower()
+    push_flag = str(config.get("push", "")).strip().lower()
     return push_flag in {"true", "1", "on", "yes"}
 
 
-async def run_once_and_push(
+async def run_single_account(
     config_path: str | None = None,
     push_config_path: str | None = None,
     use_env: bool = True,

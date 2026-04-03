@@ -1,11 +1,7 @@
 from typing import Any
 
-from . import config, login
+from . import CookieError, config, http, log, login, t
 from .constants import API_ACCOUNT_INFO, GAME_INFO_ID_TO_CONFIG, GAME_INFO_ID_TO_NAME
-from .error import CookieError
-from .i18n import t
-from .loghelper import log
-from .request import http
 
 
 # Helper
@@ -36,7 +32,7 @@ async def get_account_list(
     game_name = get_game_name(game_id)
 
     if update and await login.update_cookie_token():
-        headers["Cookie"] = config.config["account"]["cookie"]
+        headers["Cookie"] = config["account"]["cookie"]
     elif update:
         log.warning(t("account.list_fail", name=game_name))
         raise CookieError(t("account.cookie_invalid"))

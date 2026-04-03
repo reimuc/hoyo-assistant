@@ -5,6 +5,7 @@ import time
 import uuid
 from typing import Any
 
+from . import t
 from .constants import (
     DEFAULT_HEADERS,
     MIHOYOBBS_SALT,
@@ -12,7 +13,6 @@ from .constants import (
     MIHOYOBBS_SALT_X6,
     MIHOYOBBS_VERSION,
 )
-from .i18n import t
 
 
 def md5(text: str) -> str:

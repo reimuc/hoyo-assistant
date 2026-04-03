@@ -13,6 +13,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from . import log, t
 from .constants import (
     ASYNC_TIMEOUT,
     CACHE_MAX_SIZE,
@@ -24,8 +25,6 @@ from .constants import (
     RETRY_INTERVAL,
     RETRY_TIMES,
 )
-from .i18n import t
-from .loghelper import log
 
 
 class MockResponse:
@@ -121,7 +120,6 @@ class HttpClient:
         timeout = aiohttp.ClientTimeout(total=ASYNC_TIMEOUT)
 
         def json_serializer(x: Any) -> str:
-            # orjson.dumps returns bytes but its stub may be Any; cast to str to satisfy mypy
             return cast(str, orjson.dumps(x).decode())
 
         self.session = aiohttp.ClientSession(

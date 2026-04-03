@@ -68,19 +68,12 @@ class GamesCNConfig(BaseGamesConfig):
         "Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36"
     )
     retries: int = 3
-    # Override defaults where needed
-    genshin: GameItemConfig = Field(
-        default_factory=lambda: GameItemConfig(checkin=True)
-    )
 
 
 class GamesOSConfig(BaseGamesConfig):
     enable: bool = False
     cookie: str = ""
     lang: str = "zh-cn"
-    # OS games typically exclude Honkai 2 (Gun Girl Z) if not supported or maintained separately
-    # But inheriting covers it harmlessly if unused.
-    pass
 
 
 class GamesConfig(BaseConfigModel):
@@ -93,17 +86,18 @@ class CloudGameItemConfig(BaseConfigModel):
     token: str = ""
 
 
-class CloudGamesCNConfig(BaseConfigModel):
-    enable: bool = False
+class BaseCloudGamesConfig(BaseConfigModel):
     genshin: CloudGameItemConfig = Field(default_factory=CloudGameItemConfig)
     zzz: CloudGameItemConfig = Field(default_factory=CloudGameItemConfig)
 
 
-class CloudGamesOSConfig(BaseConfigModel):
+class CloudGamesCNConfig(BaseCloudGamesConfig):
+    enable: bool = False
+
+
+class CloudGamesOSConfig(BaseCloudGamesConfig):
     enable: bool = False
     lang: str = "zh-cn"
-    genshin: CloudGameItemConfig = Field(default_factory=CloudGameItemConfig)
-    zzz: CloudGameItemConfig = Field(default_factory=CloudGameItemConfig)
 
 
 class CloudGamesConfig(BaseConfigModel):

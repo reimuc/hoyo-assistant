@@ -32,4 +32,4 @@ jobs:
           mkdir config
           curl ${{ secrets.CONFIG_1 }} -o config/config_1.yaml
           curl ${{ secrets.CONFIG_2 }} -o config/config_2.yaml
-          python tests/run_test.py --multi
+          python tests/test_task.py --multi

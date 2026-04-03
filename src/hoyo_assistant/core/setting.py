@@ -5,11 +5,10 @@ from typing import Any
 
 import yaml
 
-from .config_schema import HoyoSettings
-from .i18n import t
-from .loghelper import logger as log
+from . import log, t
+from .setting_schema import HoyoSettings
 
-config: HoyoSettings = HoyoSettings().model_dump()
+config: dict[str, Any] = HoyoSettings().model_dump()
 config_raw: dict[str, Any] = deepcopy(config)
 runtime_overrides: dict[str, Any] = {}
 
@@ -40,32 +39,27 @@ def _mask_secret(value: Any) -> str:
     return f"{text[:4]}***{text[-2:]}"
 
 
-def redact_config_data(data: Any) -> Any:
-    """Return a redacted deep copy of config-like data for safe display."""
-
-    def _walk(node: Any, parent_key: str = "") -> Any:
-        if isinstance(node, dict):
-            result = {}
-            for key, value in node.items():
-                lower_key = str(key).lower()
-                if lower_key in _SENSITIVE_KEYS or lower_key.endswith("_token"):
-                    result[key] = _mask_secret(value)
-                else:
-                    result[key] = _walk(value, lower_key)
-            return result
-        if isinstance(node, list):
-            return [_walk(item, parent_key) for item in node]
-        return node
-
-    return _walk(deepcopy(data))
-
-
 def get_effective_config(redact: bool = True) -> Any:
     """Get current effective runtime config, optionally redacted."""
     current = deepcopy(config)
     if redact:
-        return redact_config_data(current)
+        return _walk(deepcopy(current))
     return current
+
+
+def _walk(node: Any, parent_key: str = "") -> Any:
+    if isinstance(node, dict):
+        result = {}
+        for key, value in node.items():
+            lower_key = str(key).lower()
+            if lower_key in _SENSITIVE_KEYS or lower_key.endswith("_token"):
+                result[key] = _mask_secret(value)
+            else:
+                result[key] = _walk(value, lower_key)
+        return result
+    if isinstance(node, list):
+        return [_walk(item, parent_key) for item in node]
+    return node
 
 
 def _deep_merge_dict(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -83,15 +77,7 @@ def load_config(
     overrides: dict[str, Any] | None = None,
     use_env: bool = True,
 ) -> dict[str, Any]:
-    """
-    Load configuration from file or environment.
-
-    Args:
-        config_file: Path to specific config file to load. If None, uses global config_path or searches.
-
-    Raises:
-        ValueError: If config file validation fails.
-    """
+    """Load configuration from file or environment."""
     global config, config_path, path, runtime_overrides
 
     if overrides is not None:

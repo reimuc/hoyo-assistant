@@ -258,7 +258,8 @@
       "sign_fail_account": "{uid}，本次签到失败",
       "sign_fail_captcha": "{uid}，触发验证码，本次签到失败",
       "sign_success_msg": "{uid}已连续签到 {days} 天，今天获得的奖励是：{reward}",
-      "sign_fail_msg": "账号签到失败！"
+      "sign_fail_msg": "账号签到失败！",
+      "task_error": "任务执行出错：{error}"
     },
     "os": {
       "title": "国际服：",

@@ -6,11 +6,13 @@ import sys
 from contextlib import suppress
 from typing import Any
 
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 
 from . import server
-from .core import config
+from .core import loghelper, setting, t
+from .core.models import ServerSettings
 from .runner import multi_account, single_account
 
 
@@ -69,7 +71,6 @@ def cli_panel(
 
 def print_banner() -> None:
     """Print the application banner."""
-    from .core.i18n import t
 
     if not RICH_OUTPUT:
         return
@@ -88,7 +89,6 @@ def print_banner() -> None:
 def _resolve_run_mode(args: Any) -> str:
     if getattr(args, "multi", False):
         return "multi"
-    # Auto-detect multi mode if multiple configs provided
     configs = getattr(args, "configs", None)
     if isinstance(configs, list) and len(configs) > 1:
         return "multi"
@@ -138,11 +138,10 @@ def _bootstrap_config_target(config_target: str | list[str] | None) -> str | Non
 
 async def run_single(push_config_path: str | None = None) -> None:
     """Execute single account task."""
-    from .core.i18n import t
 
     cli_print(t("cli.task.single_start"), style="green")
     try:
-        run_code, run_msg = await single_account.run_once_and_push(
+        run_code, run_msg = await single_account.run_single_account(
             push_config_path=push_config_path
         )
         if run_msg:
@@ -152,8 +151,6 @@ async def run_single(push_config_path: str | None = None) -> None:
                 border_style="green" if run_code == 0 else "red",
             )
     except Exception as e:
-        from .core.i18n import t
-
         cli_print(t("cli.task.single_fail", error=e), style="red")
         sys.exit(1)
 
@@ -164,13 +161,11 @@ async def run_multi_async(
     use_env: bool = True,
 ) -> None:
     """Execute multi-account task async."""
-    from .core.i18n import t
 
     cli_print(t("cli.task.multi_start"), style="green")
     task_status, task_push_message = await multi_account.run_multi_account(
         target_path, push_config_path=push_config_path, use_env=use_env
     )
-    from .core.i18n import t
 
     cli_panel(
         task_push_message,
@@ -205,28 +200,24 @@ def run_multi_manager(args: Any, push_config_path: str | None = None) -> None:
 
 def print_effective_config() -> None:
     """Print current effective config with redacted secrets."""
-    from .core.config import get_effective_config
-    from .core.i18n import t
 
-    effective = get_effective_config(redact=True)
+    effective = setting.get_effective_config(redact=True)
     payload = json.dumps(effective, ensure_ascii=False, indent=2)
     cli_panel(payload, title=t("cli.task.effective_config"), border_style="cyan")
 
 
 def validate_config(config_path: str | None, show_effective: bool = False) -> None:
     """Validate the configuration file at config_path against the schema."""
-    from .core.config import validate_config_file
-    from .core.i18n import t
 
     if not config_path:
-        config_path = config.config_path
+        config_path = setting.config_path
 
     if not config_path or not os.path.exists(config_path):
         cli_print(t("cli.task.config_missing"), style="red")
         return
 
     cli_print(t("cli.task.validating", path=config_path), style="yellow")
-    is_valid, errors = validate_config_file(config_path)
+    is_valid, errors = setting.validate_config_file(config_path)
 
     if is_valid:
         cli_print(t("cli.task.valid"), style="green")
@@ -241,10 +232,6 @@ def validate_config(config_path: str | None, show_effective: bool = False) -> No
 
 def generate_template(output_path: str | None) -> None:
     """Generate a default configuration template."""
-    import yaml
-
-    from .core.config import DEFAULT_CONFIG, save_config_sync
-    from .core.i18n import t
 
     cli_print(t("cli.task.gen_template"), style="yellow")
 
@@ -255,11 +242,11 @@ def generate_template(output_path: str | None) -> None:
     # Save the default config
     try:
         if output_path:
-            save_config_sync(output_path, DEFAULT_CONFIG)
+            setting.save_config_sync(output_path, setting.DEFAULT_CONFIG)
             cli_print(t("cli.task.template_saved", path=output_path), style="green")
         else:
             rendered = yaml.dump(
-                DEFAULT_CONFIG,
+                setting.DEFAULT_CONFIG,
                 default_flow_style=False,
                 allow_unicode=True,
                 sort_keys=False,
@@ -275,8 +262,6 @@ def generate_template(output_path: str | None) -> None:
 
 def fill_config_command(config_path: str, create_backup: bool = True) -> None:
     """Auto-fill and format a config file."""
-    from .core.config import auto_fill_config_file
-    from .core.i18n import t
 
     if not config_path:
         cli_print(t("cli.task.config_missing"), style="red")
@@ -285,7 +270,7 @@ def fill_config_command(config_path: str, create_backup: bool = True) -> None:
     config_path = str(os.path.expanduser(config_path))
 
     cli_print(t("cli.task.validating", path=config_path), style="cyan")
-    success, message = auto_fill_config_file(config_path, backup=create_backup)
+    success, message = setting.auto_fill_config_file(config_path, backup=create_backup)
 
     if success:
         cli_print(message, style="green")
@@ -296,7 +281,6 @@ def fill_config_command(config_path: str, create_backup: bool = True) -> None:
 
 def main() -> None:
     print_banner()
-    from .core.i18n import t
 
     parser = argparse.ArgumentParser(
         description=t("cli.parser.description"),
@@ -365,10 +349,10 @@ def main() -> None:
     # Server mode intentionally ignores CLI/env runtime overrides for scheduler isolation.
     try:
         if is_server_command:
-            config.reload_config(config_file=None, overrides={}, use_env=False)
+            setting.reload_config(config_file=None, overrides={}, use_env=False)
         else:
             # Bootstrap must be a single file path even when runtime target is a list.
-            config.reload_config(
+            setting.reload_config(
                 config_file=_bootstrap_config_target(config_target),
                 overrides=cli_overrides,
             )
@@ -377,9 +361,7 @@ def main() -> None:
         sys.exit(1)
 
     if args.debug:
-        from .core.loghelper import setup_logger
-
-        setup_logger("DEBUG")
+        loghelper.setup_logger("DEBUG")
 
     if args.command == "check":
         validate_config(args.config, getattr(args, "effective", False))
@@ -389,18 +371,13 @@ def main() -> None:
         fill_config_command(args.config, not args.no_backup)
     elif args.command == "server":
         try:
-            # Check if server starts successfully
-            from .core.i18n import t  # Need to import locally or move to file level
-
             cli_print(t("cli.task.server_start"), style="green")
             if hasattr(server, "start_interactive_console"):
-                cfg = server.ServerConfig()
+                cfg = ServerSettings()
                 server.start_interactive_console(cfg)
             else:
                 cli_print(t("cli.task.server_no_console"), style="red")
         except Exception as e:
-            from .core.i18n import t
-
             cli_print(t("cli.task.server_fail", error=e), style="red")
     else:
         if run_mode == "multi":

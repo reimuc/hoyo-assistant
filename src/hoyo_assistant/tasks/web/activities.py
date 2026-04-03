@@ -5,11 +5,11 @@ from ...core import config, log, t
 
 async def run_task() -> None:
     """根据配置执行网页活动任务"""
-    if not config.config.get("web_activity", {}).get("enable", False):
+    if not config.get("web_activity", {}).get("enable", False):
         log.info(t("web_activity.not_enabled"))
         return
 
-    activities = config.config.get("web_activity", {}).get("activities", [])
+    activities = config.get("web_activity", {}).get("activities", [])
     if not activities:
         log.info(t("web_activity.none_configured"))
         return
